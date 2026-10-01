@@ -1,6 +1,7 @@
-"""Summarize and plot the MOSI E2 supervision ablation."""
+"""Summarize and plot an E2 supervision ablation."""
 from __future__ import annotations
 
+import argparse
 import json
 from itertools import combinations
 from pathlib import Path
@@ -13,11 +14,22 @@ from scipy.stats import ttest_1samp
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN = ROOT / "runs/formal-e2-mosi"
-BASE = ROOT / "runs/rcg-fusion-mosi-v4"
-FIGURE = ROOT / "figures/e2_mosi_supervision_ablation.png"
 RESULTS = ROOT / "results"
 SEEDS = (11, 22, 33, 44, 55)
+CONFIGS = {
+    "mosi": {
+        "run": ROOT / "runs/formal-e2-mosi",
+        "base": ROOT / "runs/rcg-fusion-mosi-v4",
+        "oof": ROOT / "runs/rcg-fusion-mosi-v4/fold_0/oof_targets.npz",
+        "figure": ROOT / "figures/e2_mosi_supervision_ablation.png",
+    },
+    "mosei": {
+        "run": ROOT / "runs/formal-e2-mosei",
+        "base": ROOT / "runs/rcg-fusion-mosei-shrinkage-v1",
+        "oof": ROOT / "runs/formal-e2-mosei-oof/oof_targets.npz",
+        "figure": ROOT / "figures/e2_mosei_supervision_ablation.png",
+    },
+}
 ORDER = (
     "in_sample_hard", "oof_single_hard", "oof_multi_hard",
     "oof_multi_soft", "oof_soft_pair", "oof_soft_full",
@@ -32,8 +44,8 @@ LABELS = {
 }
 
 
-def teacher_statistics() -> dict[str, float]:
-    with np.load(BASE / "fold_0/oof_targets.npz") as saved:
+def teacher_statistics(oof_path: Path) -> dict[str, float]:
+    with np.load(oof_path) as saved:
         losses = saved["losses"]
     teachers, _, coalitions = losses.shape
     oracle = losses.argmin(2)
@@ -66,10 +78,10 @@ def teacher_statistics() -> dict[str, float]:
     }
 
 
-def audit_frame() -> pd.DataFrame:
+def audit_frame(base: Path) -> pd.DataFrame:
     rows = []
     for seed in SEEDS:
-        record = json.loads((BASE / f"fold_0/seed_{seed}/target_audit.json").read_text())
+        record = json.loads((base / f"fold_0/seed_{seed}/target_audit.json").read_text())
         rows.append({
             "train_seed": seed,
             "mean_in_sample_loss": record["mean_in_sample_loss"],
@@ -99,7 +111,9 @@ def summarize(frame: pd.DataFrame) -> pd.DataFrame:
 def comparison(frame: pd.DataFrame, first: str, second: str, metric: str) -> dict:
     pivot = frame.pivot(index="train_seed", columns="variant", values=metric)
     difference = pivot[second] - pivot[first]
-    test = ttest_1samp(difference, 0.0)
+    pvalue = None if np.allclose(difference, 0.0) else float(
+        ttest_1samp(difference, 0.0).pvalue
+    )
     return {
         "first": first,
         "second": second,
@@ -109,12 +123,13 @@ def comparison(frame: pd.DataFrame, first: str, second: str, metric: str) -> dic
             difference > 0 if "nll" not in metric and "regret" not in metric
             else difference < 0
         ).sum()),
-        "paired_t_pvalue": float(test.pvalue),
+        "paired_t_pvalue": pvalue,
     }
 
 
-def plot(audit: pd.DataFrame, stats: dict[str, float], summary: pd.DataFrame) -> None:
-    FIGURE.parent.mkdir(parents=True, exist_ok=True)
+def plot(audit: pd.DataFrame, stats: dict[str, float], summary: pd.DataFrame,
+         figure: Path) -> None:
+    figure.parent.mkdir(parents=True, exist_ok=True)
     blue, orange, green = "#0072B2", "#D55E00", "#009E73"
     fig, axes = plt.subplots(2, 2, figsize=(11.2, 7.2), constrained_layout=True)
 
@@ -166,33 +181,36 @@ def plot(audit: pd.DataFrame, stats: dict[str, float], summary: pd.DataFrame) ->
     for axis in axes.flat:
         axis.grid(axis="y", color="#dddddd", linewidth=0.7)
         axis.spines[["top", "right"]].set_visible(False)
-    fig.savefig(FIGURE, dpi=300, facecolor="white", transparent=False,
+    fig.savefig(figure, dpi=300, facecolor="white", transparent=False,
                 bbox_inches="tight")
     plt.close(fig)
 
 
-def main() -> None:
-    frame = pd.read_csv(RUN / "metrics_by_seed.csv")
+def run(dataset: str) -> None:
+    config = CONFIGS[dataset]
+    frame = pd.read_csv(config["run"] / "metrics_by_seed.csv")
     if set(frame.variant) != set(ORDER) or len(frame) != 30:
         raise ValueError("expected six variants by five seeds")
     if frame.groupby("variant").train_seed.nunique().min() != 5:
         raise ValueError("each E2 variant must contain all five seeds")
-    audit = audit_frame()
-    stats = teacher_statistics()
+    audit = audit_frame(config["base"])
+    stats = teacher_statistics(config["oof"])
     summary = summarize(frame)
     comparisons = [
         comparison(frame, "oof_single_hard", "oof_multi_hard", "anchored_top3"),
         comparison(frame, "oof_multi_hard", "oof_multi_soft", "anchored_top3"),
+        comparison(frame, "oof_multi_hard", "oof_soft_pair", "anchored_top3"),
         comparison(frame, "oof_multi_soft", "oof_soft_full", "anchored_top3"),
         comparison(frame, "in_sample_hard", "oof_soft_full", "anchored_top3"),
         comparison(frame, "in_sample_hard", "oof_soft_full", "candidate_oracle_nll"),
     ]
     RESULTS.mkdir(exist_ok=True)
-    frame.to_csv(RESULTS / "e2_mosi_supervision_ablation_by_seed.csv", index=False)
-    summary.to_csv(RESULTS / "e2_mosi_supervision_ablation.csv", index=False)
-    audit.to_csv(RESULTS / "e2_mosi_target_audit.csv", index=False)
+    prefix = f"e2_{dataset}"
+    frame.to_csv(RESULTS / f"{prefix}_supervision_ablation_by_seed.csv", index=False)
+    summary.to_csv(RESULTS / f"{prefix}_supervision_ablation.csv", index=False)
+    audit.to_csv(RESULTS / f"{prefix}_target_audit.csv", index=False)
     output = {
-        "dataset": "MOSI", "seeds": list(SEEDS),
+        "dataset": dataset.upper(), "seeds": list(SEEDS),
         "teacher_statistics": stats,
         "audit_mean": {
             column: float(audit[column].mean())
@@ -200,11 +218,17 @@ def main() -> None:
         },
         "comparisons": comparisons,
     }
-    (RESULTS / "e2_mosi_supervision_summary.json").write_text(
+    (RESULTS / f"{prefix}_supervision_summary.json").write_text(
         json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    plot(audit, stats, summary)
+    plot(audit, stats, summary, config["figure"])
     print(json.dumps(output, ensure_ascii=False, indent=2))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", choices=tuple(CONFIGS), default="mosi")
+    run(parser.parse_args().dataset)
 
 
 if __name__ == "__main__":

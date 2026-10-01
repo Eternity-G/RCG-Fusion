@@ -1,4 +1,4 @@
-"""Run the MOSI E2 supervision ablation with fixed backbone and posterior models."""
+"""Run the E2 supervision ablation with fixed backbone and posterior models."""
 from __future__ import annotations
 
 import argparse
@@ -23,10 +23,23 @@ from rcg.rcg_fusion_pipeline import (attach_observed_losses, load_dataset,
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = ROOT / "runs/rcg-fusion-mosi-v4"
-POSTERIOR = ROOT / "runs/rcg-posterior-analytic-mosi-v2"
-OUTPUT = ROOT / "runs/formal-e2-mosi"
 SEEDS = (11, 22, 33, 44, 55)
+CONFIGS = {
+    "mosi": {
+        "base": ROOT / "runs/rcg-fusion-mosi-v4",
+        "posterior": ROOT / "runs/rcg-posterior-analytic-mosi-v2",
+        "oof": ROOT / "runs/rcg-fusion-mosi-v4/fold_0/oof_targets.npz",
+        "output": ROOT / "runs/formal-e2-mosi",
+        "batch_size": 64,
+    },
+    "mosei": {
+        "base": ROOT / "runs/rcg-fusion-mosei-shrinkage-v1",
+        "posterior": ROOT / "runs/rcg-posterior-analytic-mosei-shrinkage-v1",
+        "oof": ROOT / "runs/formal-e2-mosei-oof/oof_targets.npz",
+        "output": ROOT / "runs/formal-e2-mosei",
+        "batch_size": 128,
+    },
+}
 
 VARIANTS = {
     "in_sample_hard": {"source": "in_sample", "teachers": 1, "hard": True,
@@ -68,25 +81,34 @@ def top3_metrics(output: dict, losses: np.ndarray) -> tuple[float, float]:
     return float(coverage), float(candidate_loss)
 
 
-def run(device: str = "auto") -> None:
+def run(dataset: str, device: str = "auto") -> None:
     device = "cuda" if device == "auto" and torch.cuda.is_available() else device
     device = "cpu" if device == "auto" else device
-    folds, names = load_dataset("mosi", ROOT / "data")
+    dataset_config = CONFIGS[dataset]
+    base, posterior_root, output_dir = (
+        dataset_config["base"], dataset_config["posterior"], dataset_config["output"]
+    )
+    folds, names = load_dataset(dataset, ROOT / "data")
     if len(folds) != 1:
-        raise ValueError("E2 MOSI expects one standard outer split")
+        raise ValueError(f"E2 {dataset} expects one standard outer split")
     splits = folds[0]
     masks = nonempty_coalitions(len(names))
-    with np.load(BASE / "fold_0/oof_targets.npz") as saved:
+    with np.load(dataset_config["oof"]) as saved:
         oof = {key: saved[key] for key in saved.files}
     teacher_seed_to_index = {
         int(seed): index for index, seed in enumerate(oof["teacher_seeds"])
     }
-    rows = []
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint = output_dir / "metrics_by_seed.partial.csv"
+    if checkpoint.exists():
+        rows = pd.read_csv(checkpoint).to_dict("records")
+    else:
+        rows = []
+    completed = {(row["variant"], int(row["train_seed"])) for row in rows}
 
     for task_seed in SEEDS:
         backbone, temperatures, dims, classes = _load_backbone(
-            BASE / f"fold_0/seed_{task_seed}/backbone.pt", device
+            base / f"fold_0/seed_{task_seed}/backbone.pt", device
         )
         bundles = {}
         for split_name in ("train", "selection", "test"):
@@ -96,18 +118,20 @@ def run(device: str = "auto") -> None:
         posterior = {"train_oof": []}
         for teacher_probability in oof["probabilities"]:
             _, value = load_posteriors(
-                POSTERIOR, task_seed, dims, classes, masks, splits["train"],
+                posterior_root, task_seed, dims, classes, masks, splits["train"],
                 teacher_probability, device, fold_index=0,
             )
             posterior["train_oof"].append(value)
         posterior["train_oof"] = np.stack(posterior["train_oof"])
         for split_name in ("train", "selection", "test"):
             _, posterior[split_name] = load_posteriors(
-                POSTERIOR, task_seed, dims, classes, masks, splits[split_name],
+                posterior_root, task_seed, dims, classes, masks, splits[split_name],
                 bundles[split_name]["probabilities"], device, fold_index=0,
             )
 
         for variant, config in VARIANTS.items():
+            if (variant, task_seed) in completed:
+                continue
             if config["source"] == "in_sample":
                 train_probability = bundles["train"]["probabilities"][None]
                 train_losses = bundles["train"]["losses"][None]
@@ -135,7 +159,7 @@ def run(device: str = "auto") -> None:
                 model, splits["train"], train_probability, train_target,
                 splits["selection"], bundles["selection"]["probabilities"],
                 selection_target, masks, device, seed=task_seed,
-                epochs=100, batch_size=64, patience=10,
+                epochs=100, batch_size=dataset_config["batch_size"], patience=10,
                 objective_kwargs={
                     "pair_weight": config["pair_weight"],
                     "stable_weight": config["stable_weight"],
@@ -148,15 +172,17 @@ def run(device: str = "auto") -> None:
             blend, _ = select_residual_blend(
                 selection_output, bundles["selection"]["losses"]
             )
-            output = predict_router(
+            route_output = predict_router(
                 model, splits["test"], bundles["test"]["probabilities"],
                 masks, device, posterior["test"],
             )
-            output = apply_residual_blend(output, blend)
+            route_output = apply_residual_blend(route_output, blend)
             result, _, _ = evaluate(
-                output, bundles["test"], splits["test"]["y"]
+                route_output, bundles["test"], splits["test"]["y"]
             )
-            top3, candidate_nll = top3_metrics(output, bundles["test"]["losses"])
+            top3, candidate_nll = top3_metrics(
+                route_output, bundles["test"]["losses"]
+            )
             rows.append({
                 "variant": variant,
                 "train_seed": task_seed,
@@ -171,6 +197,7 @@ def run(device: str = "auto") -> None:
                 "selected_nll": result["selected_nll"],
                 "selection_regret": result["selection_regret"],
             })
+            pd.DataFrame(rows).to_csv(checkpoint, index=False)
             print(
                 f"{variant} seed={task_seed} ndcg={result['router_ndcg']:.4f} "
                 f"top3={top3:.4f} candidate_nll={candidate_nll:.4f}",
@@ -178,32 +205,36 @@ def run(device: str = "auto") -> None:
             )
 
     frame = pd.DataFrame(rows)
-    frame.to_csv(OUTPUT / "metrics_by_seed.csv", index=False)
+    frame.to_csv(output_dir / "metrics_by_seed.csv", index=False)
     metrics = [column for column in frame.columns if column not in {
         "variant", "train_seed", "epochs"
     }]
     summary = frame.groupby("variant")[metrics].agg(["mean", "std"])
     summary.columns = [f"{metric}_{stat}" for metric, stat in summary.columns]
-    summary.reset_index().to_csv(OUTPUT / "metrics_summary.csv", index=False)
+    summary.reset_index().to_csv(output_dir / "metrics_summary.csv", index=False)
     manifest = {
-        "dataset": "MOSI",
+        "dataset": dataset,
         "seeds": list(SEEDS),
         "variants": VARIANTS,
-        "base_run": str(BASE),
-        "posterior_run": str(POSTERIOR),
+        "base_run": str(base),
+        "posterior_run": str(posterior_root),
+        "oof_targets": str(dataset_config["oof"]),
         "device": device,
         "selection_role": "early stopping and residual blend only",
         "test_labels_role": "evaluation only",
     }
-    (OUTPUT / "manifest.json").write_text(
+    (output_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    checkpoint.unlink(missing_ok=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", choices=tuple(CONFIGS), default="mosi")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
-    run(parser.parse_args().device)
+    args = parser.parse_args()
+    run(args.dataset, args.device)
 
 
 if __name__ == "__main__":

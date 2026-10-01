@@ -1,0 +1,76 @@
+{
+  "dataset": "MOSEI",
+  "seeds": [
+    11,
+    22,
+    33,
+    44,
+    55
+  ],
+  "teacher_statistics": {
+    "hard_target_variance": 0.39438761145002355,
+    "soft_target_variance": 0.022541973739862442,
+    "soft_to_hard_variance_ratio": 0.05715690119419215,
+    "mean_max_vote_fraction": 0.6907085875175974,
+    "at_least_four_of_five_agreement": 0.4534647270452057,
+    "five_of_five_agreement": 0.18473330204911623,
+    "mean_pairwise_teacher_oracle_agreement": 0.5070154856874707,
+    "normalized_soft_oracle_entropy": 0.754393994808197
+  },
+  "audit_mean": {
+    "mean_in_sample_loss": 0.44129915833473204,
+    "mean_oof_loss": 0.49368932843208313,
+    "oof_minus_in_sample_loss": 0.05239022709429264,
+    "oof_in_sample_loss_spearman": 0.8911076486395821
+  },
+  "comparisons": [
+    {
+      "first": "oof_single_hard",
+      "second": "oof_multi_hard",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": 0.0,
+      "seeds_second_better": 0,
+      "paired_t_pvalue": null
+    },
+    {
+      "first": "oof_multi_hard",
+      "second": "oof_multi_soft",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": 0.15960374243258119,
+      "seeds_second_better": 4,
+      "paired_t_pvalue": 0.0630966946221512
+    },
+    {
+      "first": "oof_multi_hard",
+      "second": "oof_soft_pair",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": 0.18260869565217394,
+      "seeds_second_better": 4,
+      "paired_t_pvalue": 0.046665422669240696
+    },
+    {
+      "first": "oof_multi_soft",
+      "second": "oof_soft_full",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": -0.04832140891579526,
+      "seeds_second_better": 2,
+      "paired_t_pvalue": 0.3603763932688424
+    },
+    {
+      "first": "in_sample_hard",
+      "second": "oof_soft_full",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": 0.11128233351678593,
+      "seeds_second_better": 3,
+      "paired_t_pvalue": 0.13887894571938192
+    },
+    {
+      "first": "in_sample_hard",
+      "second": "oof_soft_full",
+      "metric": "candidate_oracle_nll",
+      "mean_second_minus_first": -0.004502683877944946,
+      "seeds_second_better": 3,
+      "paired_t_pvalue": 0.2888377103961394
+    }
+  ]
+}

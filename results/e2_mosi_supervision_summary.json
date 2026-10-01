@@ -41,6 +41,14 @@
       "paired_t_pvalue": 0.09193707514373015
     },
     {
+      "first": "oof_multi_hard",
+      "second": "oof_soft_pair",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": -0.09999999999999999,
+      "seeds_second_better": 1,
+      "paired_t_pvalue": 0.055717362924308456
+    },
+    {
       "first": "oof_multi_soft",
       "second": "oof_soft_full",
       "metric": "anchored_top3",
