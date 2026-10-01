@@ -39,7 +39,9 @@ def target_tensors(target, device):
 
 def train_router(model, train_split, train_probabilities, train_target,
                  selection_split, selection_probabilities, selection_target,
-                 masks, device, *, seed, epochs=100, batch_size=64, patience=10):
+                 masks, device, *, seed, epochs=100, batch_size=64, patience=10,
+                 objective_kwargs=None):
+    objective_kwargs = {} if objective_kwargs is None else dict(objective_kwargs)
     seed_all(seed)
     tx, ty = tensors(train_split, device); vx, vy = tensors(selection_split, device)
     tcp = torch.as_tensor(train_probabilities, dtype=torch.float32, device=device)
@@ -77,7 +79,8 @@ def train_router(model, train_split, train_probabilities, train_target,
                 teachers, *value[index].shape).reshape(-1, *value.shape[1:])
                 for key, value in tt.items()}
             loss, _ = listwise_router_objective(
-                output, ty[repeated], batch_target, posterior_weight=posterior_weight)
+                output, ty[repeated], batch_target, posterior_weight=posterior_weight,
+                **objective_kwargs)
             optimizer.zero_grad(set_to_none=True); loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5.); optimizer.step()
             train_values.append(float(loss.detach()))
@@ -85,7 +88,8 @@ def train_router(model, train_split, train_probabilities, train_target,
         with torch.inference_mode():
             output = model(vx, vcp, mt, posterior_override=selection_posterior)
             loss, parts = listwise_router_objective(
-                output, vy, vt, posterior_weight=posterior_weight)
+                output, vy, vt, posterior_weight=posterior_weight,
+                **objective_kwargs)
         value = float(loss)
         history.append({"epoch": epoch+1, "train": float(np.mean(train_values)),
                         "selection": value,

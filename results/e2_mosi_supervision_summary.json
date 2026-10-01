@@ -1,0 +1,68 @@
+{
+  "dataset": "MOSI",
+  "seeds": [
+    11,
+    22,
+    33,
+    44,
+    55
+  ],
+  "teacher_statistics": {
+    "hard_target_variance": 0.4433468724614135,
+    "soft_target_variance": 0.03326556086540222,
+    "soft_to_hard_variance_ratio": 0.07503280824045393,
+    "mean_max_vote_fraction": 0.6505280259951258,
+    "at_least_four_of_five_agreement": 0.36799350121852153,
+    "five_of_five_agreement": 0.11535337124289195,
+    "mean_pairwise_teacher_oracle_agreement": 0.44581640942323314,
+    "normalized_soft_oracle_entropy": 0.7696945667266846
+  },
+  "audit_mean": {
+    "mean_in_sample_loss": 0.4821644306182861,
+    "mean_oof_loss": 0.5792368412017822,
+    "oof_minus_in_sample_loss": 0.09707240611314774,
+    "oof_in_sample_loss_spearman": 0.7537693624829281
+  },
+  "comparisons": [
+    {
+      "first": "oof_single_hard",
+      "second": "oof_multi_hard",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": 0.11189024390243904,
+      "seeds_second_better": 3,
+      "paired_t_pvalue": 0.1721084702060994
+    },
+    {
+      "first": "oof_multi_hard",
+      "second": "oof_multi_soft",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": -0.14420731707317075,
+      "seeds_second_better": 1,
+      "paired_t_pvalue": 0.09193707514373015
+    },
+    {
+      "first": "oof_multi_soft",
+      "second": "oof_soft_full",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": 0.0621951219512195,
+      "seeds_second_better": 4,
+      "paired_t_pvalue": 0.26071961198716664
+    },
+    {
+      "first": "in_sample_hard",
+      "second": "oof_soft_full",
+      "metric": "anchored_top3",
+      "mean_second_minus_first": -0.19146341463414634,
+      "seeds_second_better": 0,
+      "paired_t_pvalue": 0.008035956180026909
+    },
+    {
+      "first": "in_sample_hard",
+      "second": "oof_soft_full",
+      "metric": "candidate_oracle_nll",
+      "mean_second_minus_first": 0.019873338937759367,
+      "seeds_second_better": 1,
+      "paired_t_pvalue": 0.1526713234905492
+    }
+  ]
+}
