@@ -11,6 +11,7 @@ def test_load_posteriors_has_explicit_outer_fold():
 
 
 def test_frozen_protocol_excludes_deferred_food101():
-    text = Path("EXPERIMENT_PROTOCOL_V1.md").read_text(encoding="utf-8")
+    text = Path("docx/03_experiment_history/EXPERIMENT_PROTOCOL_V1.md").read_text(
+        encoding="utf-8")
     assert "outside this experiment round" in text
     assert "MOSI" not in text or "CREMA-D" in text
