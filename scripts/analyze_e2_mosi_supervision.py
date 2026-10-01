@@ -29,6 +29,14 @@ CONFIGS = {
         "oof": ROOT / "runs/formal-e2-mosei-oof/oof_targets.npz",
         "figure": ROOT / "figures/e2_mosei_supervision_ablation.png",
     },
+    "cremad": {
+        "run": ROOT / "runs/formal-e2-cremad",
+        "base": ROOT / "runs/rcg-fusion-cremad-v1",
+        "oof": ROOT / "runs/formal-e2-cremad-oof/fold_{fold}/oof_targets.npz",
+        "figure": ROOT / "figures/e2_cremad_supervision_ablation.png",
+        "folds": 5,
+        "candidate_label": "Top-2",
+    },
 }
 ORDER = (
     "in_sample_hard", "oof_single_hard", "oof_multi_hard",
@@ -44,7 +52,7 @@ LABELS = {
 }
 
 
-def teacher_statistics(oof_path: Path) -> dict[str, float]:
+def teacher_statistics_one(oof_path: Path) -> tuple[dict[str, float], int]:
     with np.load(oof_path) as saved:
         losses = saved["losses"]
     teachers, _, coalitions = losses.shape
@@ -75,20 +83,38 @@ def teacher_statistics(oof_path: Path) -> dict[str, float]:
         "five_of_five_agreement": float(np.mean(vote == 1.0)),
         "mean_pairwise_teacher_oracle_agreement": float(pair_agreement),
         "normalized_soft_oracle_entropy": normalized_entropy,
+    }, losses.shape[1]
+
+
+def teacher_statistics(oof_spec: Path | str, folds: int = 1) -> dict[str, float]:
+    records = []
+    weights = []
+    for fold in range(folds):
+        path = Path(str(oof_spec).format(fold=fold))
+        record, weight = teacher_statistics_one(path)
+        records.append(record)
+        weights.append(weight)
+    return {
+        key: float(np.average([record[key] for record in records], weights=weights))
+        for key in records[0]
     }
 
 
-def audit_frame(base: Path) -> pd.DataFrame:
+def audit_frame(base: Path, folds: int = 1) -> pd.DataFrame:
     rows = []
-    for seed in SEEDS:
-        record = json.loads((base / f"fold_0/seed_{seed}/target_audit.json").read_text())
-        rows.append({
-            "train_seed": seed,
-            "mean_in_sample_loss": record["mean_in_sample_loss"],
-            "mean_oof_loss": record["mean_oof_loss"],
-            "oof_minus_in_sample_loss": record["oof_minus_in_sample_loss"],
-            "oof_in_sample_loss_spearman": record["oof_in_sample_loss_spearman"],
-        })
+    for fold in range(folds):
+        for seed in SEEDS:
+            record = json.loads(
+                (base / f"fold_{fold}/seed_{seed}/target_audit.json").read_text()
+            )
+            rows.append({
+                "fold": fold,
+                "train_seed": seed,
+                "mean_in_sample_loss": record["mean_in_sample_loss"],
+                "mean_oof_loss": record["mean_oof_loss"],
+                "oof_minus_in_sample_loss": record["oof_minus_in_sample_loss"],
+                "oof_in_sample_loss_spearman": record["oof_in_sample_loss_spearman"],
+            })
     return pd.DataFrame(rows)
 
 
@@ -128,23 +154,24 @@ def comparison(frame: pd.DataFrame, first: str, second: str, metric: str) -> dic
 
 
 def plot(audit: pd.DataFrame, stats: dict[str, float], summary: pd.DataFrame,
-         figure: Path) -> None:
+         figure: Path, candidate_label: str = "Top-3") -> None:
     figure.parent.mkdir(parents=True, exist_ok=True)
     blue, orange, green = "#0072B2", "#D55E00", "#009E73"
     fig, axes = plt.subplots(2, 2, figsize=(11.2, 7.2), constrained_layout=True)
 
-    x = np.arange(len(audit))
-    for index, row in audit.iterrows():
+    audit_plot = audit.groupby("train_seed", as_index=False).mean(numeric_only=True)
+    x = np.arange(len(audit_plot))
+    for index, row in audit_plot.iterrows():
         axes[0, 0].plot(
             [x[index] - 0.08, x[index] + 0.08],
             [row.mean_in_sample_loss, row.mean_oof_loss],
             color="#999999", linewidth=1,
         )
-    axes[0, 0].scatter(x - 0.08, audit.mean_in_sample_loss, color=blue,
+    axes[0, 0].scatter(x - 0.08, audit_plot.mean_in_sample_loss, color=blue,
                        label="In-sample", zorder=2)
-    axes[0, 0].scatter(x + 0.08, audit.mean_oof_loss, color=orange,
+    axes[0, 0].scatter(x + 0.08, audit_plot.mean_oof_loss, color=orange,
                        label="OOF", zorder=2)
-    axes[0, 0].set_xticks(x, [str(seed) for seed in audit.train_seed])
+    axes[0, 0].set_xticks(x, [str(seed) for seed in audit_plot.train_seed])
     axes[0, 0].set_xlabel("Task seed")
     axes[0, 0].set_ylabel("Mean coalition NLL")
     axes[0, 0].set_title("(a) Training optimism audit", loc="left", fontsize=10)
@@ -166,7 +193,7 @@ def plot(audit: pd.DataFrame, stats: dict[str, float], summary: pd.DataFrame,
     )
     axes[1, 0].set_xticks(positions, [LABELS[value] for value in ORDER],
                          rotation=22, ha="right")
-    axes[1, 0].set_ylabel("Top-3 oracle coverage")
+    axes[1, 0].set_ylabel(f"{candidate_label} oracle coverage")
     axes[1, 0].set_title("(c) Candidate coverage (mean ± SD)", loc="left", fontsize=10)
 
     axes[1, 1].bar(
@@ -176,7 +203,10 @@ def plot(audit: pd.DataFrame, stats: dict[str, float], summary: pd.DataFrame,
     axes[1, 1].set_xticks(positions, [LABELS[value] for value in ORDER],
                          rotation=22, ha="right")
     axes[1, 1].set_ylabel("Candidate oracle NLL")
-    axes[1, 1].set_title("(d) Best loss inside Top-3 (mean ± SD)", loc="left", fontsize=10)
+    axes[1, 1].set_title(
+        f"(d) Best loss inside {candidate_label} (mean ± SD)",
+        loc="left", fontsize=10,
+    )
 
     for axis in axes.flat:
         axis.grid(axis="y", color="#dddddd", linewidth=0.7)
@@ -193,8 +223,9 @@ def run(dataset: str) -> None:
         raise ValueError("expected six variants by five seeds")
     if frame.groupby("variant").train_seed.nunique().min() != 5:
         raise ValueError("each E2 variant must contain all five seeds")
-    audit = audit_frame(config["base"])
-    stats = teacher_statistics(config["oof"])
+    folds = config.get("folds", 1)
+    audit = audit_frame(config["base"], folds)
+    stats = teacher_statistics(config["oof"], folds)
     summary = summarize(frame)
     comparisons = [
         comparison(frame, "oof_single_hard", "oof_multi_hard", "anchored_top3"),
@@ -207,6 +238,12 @@ def run(dataset: str) -> None:
     RESULTS.mkdir(exist_ok=True)
     prefix = f"e2_{dataset}"
     frame.to_csv(RESULTS / f"{prefix}_supervision_ablation_by_seed.csv", index=False)
+    fold_seed_path = config["run"] / "metrics_by_fold_seed.csv"
+    if fold_seed_path.exists():
+        pd.read_csv(fold_seed_path).to_csv(
+            RESULTS / f"{prefix}_supervision_ablation_by_fold_seed.csv",
+            index=False,
+        )
     summary.to_csv(RESULTS / f"{prefix}_supervision_ablation.csv", index=False)
     audit.to_csv(RESULTS / f"{prefix}_target_audit.csv", index=False)
     output = {
@@ -214,14 +251,17 @@ def run(dataset: str) -> None:
         "teacher_statistics": stats,
         "audit_mean": {
             column: float(audit[column].mean())
-            for column in audit.columns if column != "train_seed"
+            for column in audit.columns if column not in {"fold", "train_seed"}
         },
         "comparisons": comparisons,
     }
     (RESULTS / f"{prefix}_supervision_summary.json").write_text(
         json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    plot(audit, stats, summary, config["figure"])
+    plot(
+        audit, stats, summary, config["figure"],
+        config.get("candidate_label", "Top-3"),
+    )
     print(json.dumps(output, ensure_ascii=False, indent=2))
 
 
