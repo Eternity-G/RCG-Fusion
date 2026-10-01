@@ -1,0 +1,43 @@
+{
+  "replicates": 5,
+  "members_per_replicate": 5,
+  "final_accuracy_mean": 0.8434232250963125,
+  "final_accuracy_sd": 0.001230637301871086,
+  "full_accuracy_mean": 0.8421023665382498,
+  "full_accuracy_sd": 0.0009412565424594008,
+  "accuracy_delta_pp_mean": 0.1320858558062743,
+  "accuracy_delta_pp_sd": 0.1251988240624937,
+  "accuracy_delta_t_ci_pp": [
+    -0.02336901664957156,
+    0.2875407282621202
+  ],
+  "accuracy_delta_t_p": 0.07774164094790341,
+  "final_nll_mean": 0.3553151191258156,
+  "final_nll_sd": 0.0022468464003954462,
+  "full_nll_mean": 0.35528735518455506,
+  "full_nll_sd": 0.0007745360757203648,
+  "nll_delta_mean": 2.7763941260516844e-05,
+  "nll_delta_sd": 0.002086985169853953,
+  "nll_delta_t_ci": [
+    -0.0025635704089323093,
+    0.0026190982914533426
+  ],
+  "nll_delta_t_p": 0.9776936780141451,
+  "system_error_reduction_mean": 0.040236569922420765,
+  "system_error_reduction_sd": 0.014088427808157309,
+  "replicates_above_10pct_system_error_reduction": 0,
+  "replicates_improving_accuracy_vs_full": 4,
+  "replicates_improving_nll_vs_full": 3,
+  "cluster_bootstrap_ci": {
+    "accuracy_delta": [
+      -0.0013644543130255991,
+      0.004065980629539937
+    ],
+    "nll_delta": [
+      -0.0027415475953261395,
+      0.002929381470992522
+    ]
+  },
+  "bootstrap_repetitions": 10000,
+  "bootstrap_cluster": "original MOSEI video"
+}
