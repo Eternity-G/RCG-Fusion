@@ -1,0 +1,64 @@
+{
+  "dataset": "AV-MNIST",
+  "samples": 3600,
+  "classes": 10,
+  "members": 5,
+  "safe_shrinkage_rho": 1.0,
+  "bootstrap_repetitions": 10000,
+  "bootstrap_scheme": "within-class stratified sample bootstrap",
+  "observed": {
+    "full_accuracy": 0.9919444444444444,
+    "final_accuracy": 0.9947222222222222,
+    "accuracy_delta": 0.002777777777777768,
+    "full_macro_f1": 0.991944753325725,
+    "final_macro_f1": 0.9947214233145999,
+    "macro_f1_delta": 0.0027766699888749358,
+    "full_nll": 0.027798335234678014,
+    "final_nll": 0.022324270774127967,
+    "nll_delta": -0.005474064460550047,
+    "full_brier": 0.012914147492493512,
+    "final_brier": 0.00947278255078905,
+    "brier_delta": -0.0034413649417044615,
+    "full_ece": 0.008354936093091956,
+    "final_ece": 0.00171233780281972,
+    "ece_delta": -0.006642598290272236,
+    "negative_flip_rate": 0.0011111111111111111,
+    "correction_rate": 0.0038888888888888888,
+    "relative_error_reduction_vs_full": 0.3448275862068937,
+    "relative_nll_reduction_vs_full": 0.19692058586735914
+  },
+  "confidence_intervals": {
+    "accuracy_delta": [
+      0.0005555555555555314,
+      0.0050000000000000044
+    ],
+    "macro_f1_delta": [
+      0.0005550805134898918,
+      0.005006693152333907
+    ],
+    "nll_delta": [
+      -0.01002233571031483,
+      -0.0006090383135341253
+    ],
+    "brier_delta": [
+      -0.005576894885739739,
+      -0.001309118881002451
+    ],
+    "ece_delta": [
+      -0.00876950581826665,
+      -0.002738017420583314
+    ],
+    "negative_flip_rate": [
+      0.0002777777777777778,
+      0.0022222222222222222
+    ],
+    "correction_rate": [
+      0.0019444444444444444,
+      0.006111111111111111
+    ]
+  },
+  "classes_improving_recall": 7,
+  "classes_declining_recall": 1,
+  "total_corrections": 14,
+  "total_negative_flips": 4
+}
