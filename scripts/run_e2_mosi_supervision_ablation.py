@@ -48,6 +48,13 @@ CONFIGS = {
         "output": ROOT / "runs/formal-e2-cremad",
         "batch_size": 64,
     },
+    "avmnist": {
+        "base": ROOT / "runs/rcg-fusion-avmnist-v1",
+        "posterior": ROOT / "runs/rcg-posterior-analytic-avmnist-v1",
+        "oof": ROOT / "runs/formal-e2-avmnist-oof/oof_targets.npz",
+        "output": ROOT / "runs/formal-e2-avmnist",
+        "batch_size": 128,
+    },
 }
 
 VARIANTS = {

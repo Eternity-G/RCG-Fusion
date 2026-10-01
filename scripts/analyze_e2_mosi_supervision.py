@@ -37,6 +37,13 @@ CONFIGS = {
         "folds": 5,
         "candidate_label": "Top-2",
     },
+    "avmnist": {
+        "run": ROOT / "runs/formal-e2-avmnist",
+        "base": ROOT / "runs/rcg-fusion-avmnist-v1",
+        "oof": ROOT / "runs/formal-e2-avmnist-oof/oof_targets.npz",
+        "figure": ROOT / "figures/e2_avmnist_supervision_ablation.png",
+        "candidate_label": "Top-2",
+    },
 }
 ORDER = (
     "in_sample_hard", "oof_single_hard", "oof_multi_hard",
