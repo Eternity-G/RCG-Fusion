@@ -1,0 +1,63 @@
+{
+  "dataset": "CREMA-D",
+  "samples": 7442,
+  "actors": 91,
+  "folds": 5,
+  "members": 5,
+  "bootstrap_repetitions": 10000,
+  "bootstrap_cluster": "actor",
+  "observed": {
+    "full_accuracy": 0.6343724805159904,
+    "final_accuracy": 0.6358505778016662,
+    "accuracy_delta": 0.0014780972856758279,
+    "full_macro_f1": 0.6329681382848998,
+    "final_macro_f1": 0.6346143692713079,
+    "macro_f1_delta": 0.0016462309864080371,
+    "full_nll": 0.9738392429402717,
+    "final_nll": 0.9621634282791945,
+    "nll_delta": -0.011675814661077144,
+    "full_brier": 0.48904953854583333,
+    "final_brier": 0.4847197264389128,
+    "brier_delta": -0.0043298121069205164,
+    "full_ece": 0.014359440251051576,
+    "final_ece": 0.016325308680948038,
+    "ece_delta": 0.0019658684298964613,
+    "negative_flip_rate": 0.026874496103198066,
+    "correction_rate": 0.02835259338887396,
+    "relative_error_reduction_vs_full": 0.00404263138551985,
+    "relative_nll_reduction_vs_full": 0.011989468226629326
+  },
+  "confidence_intervals": {
+    "accuracy_delta": [
+      -0.005633897343794303,
+      0.008869894833304472
+    ],
+    "macro_f1_delta": [
+      -0.0056789992282826555,
+      0.009423558603719608
+    ],
+    "nll_delta": [
+      -0.025552822593901306,
+      0.003803968341399167
+    ],
+    "brier_delta": [
+      -0.011324223139053763,
+      0.0034721247202508026
+    ],
+    "ece_delta": [
+      -0.01843506459785807,
+      0.02443964830522905
+    ],
+    "negative_flip_rate": [
+      0.022025174515542385,
+      0.03189785631037133
+    ],
+    "correction_rate": [
+      0.0225867168593708,
+      0.03455241515509883
+    ]
+  },
+  "folds_improving_accuracy": 2,
+  "folds_improving_nll": 5,
+  "fallback_folds": 1
+}
