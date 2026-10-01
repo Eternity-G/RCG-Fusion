@@ -1,0 +1,20 @@
+{
+  "datasets": [
+    "mosi",
+    "mosei",
+    "cremad",
+    "avmnist"
+  ],
+  "seeds": [
+    11,
+    22,
+    33,
+    44,
+    55
+  ],
+  "tau_nats": 0.01,
+  "coalition_aggregation": "macro average after per-coalition metrics",
+  "test_labels_role": "evaluation only",
+  "native_score_target": "benefit of removing one modality from the full alliance",
+  "device": "cuda"
+}
