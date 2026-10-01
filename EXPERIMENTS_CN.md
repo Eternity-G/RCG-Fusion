@@ -8,7 +8,7 @@
 
 ## 文档使用说明
 
-本文档是 RCG-Fusion 当前唯一的实验章节主文档，用于同时维护论文实验设计、开发结果、正式结果、待完成实验与图表索引。方法定义以 `MAIN_WORK_CN.md` 为准；可靠性–贡献差距（Reliability–Contribution Gap, RCG）的详细观测过程以 `OBSERVATION_EXPERIMENT_CHECKLIST.md` 为准；旧协议和旧结果只保留为历史记录，不覆盖本文档中的当前协议。
+本文档是 RCG-Fusion 当前唯一的实验章节主文档，用于同时维护论文实验设计、开发结果、正式结果、待完成实验与图表索引。方法定义以 `MAIN_WORK_CN.md` 为准；可靠性–贡献差距（Reliability–Contribution Gap, RCG）的详细观测过程归档于 `docx/01_observation_history/OBSERVATION_EXPERIMENT_CHECKLIST.md`；旧协议和旧结果统一存放在 `docx/`，不覆盖本文档中的当前协议。
 
 本文档中的结果使用以下标签：
 
@@ -23,11 +23,11 @@
 
 | 文档 | 后续用途 |
 |---|---|
-| `MAIN_EXPERIMENT_PROGRESS.md` | 旧版 E1–E9 实验安排和历史进度，不再作为最新协议 |
-| `OBSERVATION_EXPERIMENT_CHECKLIST.md` | 独立 RCG 问题观测章节的来源 |
-| `INTEGRATED_THREE_INNOVATIONS_REPORT.md` | 最新三项创新联调与开发结果来源 |
-| `EXPERIMENT_PROTOCOL_V1.md` | 历史冻结协议，其中旧创新三已经失效 |
-| `RESULTS_SYNTHESIS.md` | 早期观测结果来源 |
+| `docx/03_experiment_history/MAIN_EXPERIMENT_PROGRESS.md` | 旧版 E1–E9 实验安排和历史进度，不再作为最新协议 |
+| `docx/01_observation_history/OBSERVATION_EXPERIMENT_CHECKLIST.md` | 独立 RCG 问题观测章节的来源 |
+| `docx/02_method_history/INTEGRATED_THREE_INNOVATIONS_REPORT.md` | 最新三项创新联调与开发结果来源 |
+| `docx/03_experiment_history/EXPERIMENT_PROTOCOL_V1.md` | 历史冻结协议，其中旧创新三已经失效 |
+| `docx/01_observation_history/RESULTS_SYNTHESIS.md` | 早期观测结果来源 |
 | `MAIN_WORK_CN.md` | 当前方法章节，与本实验章节逐项对应 |
 
 ## 术语与统计口径
@@ -745,4 +745,3 @@ $$
 - `[待补：至少三个骨干的Base + RCG结果]`
 - `[待补：参数量、GPU小时、延迟和显存]`
 - `[待补：预定义规则选取的成功与失败案例]`
-
