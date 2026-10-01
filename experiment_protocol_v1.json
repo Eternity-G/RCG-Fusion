@@ -1,0 +1,14 @@
+{
+  "frozen_at": "2026-09-30T00:00:00+08:00",
+  "version": 1,
+  "dataset_scope": ["mosi", "mosei", "cremad", "avmnist"],
+  "food101_status": "deferred_by_user",
+  "task_seeds": [11, 22, 33, 44, 55],
+  "corruption_seeds": [101, 202, 303],
+  "posterior_loss": {"cross_entropy": 1.0, "brier": 0.1},
+  "benefit_tolerance_nats": 0.01,
+  "adaptive_shrinkage": {"alpha_max": 0.75, "gamma": 2.0},
+  "primary_metrics": ["nll", "accuracy", "macro_f1", "clipped_harm", "harm_auroc"],
+  "multiplicity": "Holm correction over preregistered primary comparisons",
+  "image_export": {"format": "png", "dpi": 300, "background": "white"}
+}

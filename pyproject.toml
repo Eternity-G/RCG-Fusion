@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rcg-study"
+version = "0.1.0"
+description = "Reproducible reliability versus conditional deletion contribution diagnostics"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "numpy==1.26.4", "pandas==2.2.3", "scipy==1.14.1",
+  "scikit-learn==1.5.2", "matplotlib==3.9.2", "pyarrow==18.1.0",
+  "torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0",
+  "pytest==8.3.3", "imageio-ffmpeg==0.6.0", "pillow>=10,<13"
+]
+
+[project.scripts]
+rcg = "rcg.cli:main"
+rcg-fusion = "rcg.rcg_fusion_pipeline:main"
+rcg-benefit = "rcg.benefit_pipeline:main"
+rcg-posterior-analytic = "rcg.posterior_analytic_pipeline:main"
+rcg-projected-fusion = "rcg.projected_fusion_pipeline:main"
+rcg-posterior-shrinkage = "rcg.posterior_shrinkage_pipeline:main"
+rcg-listwise-router = "rcg.listwise_router_pipeline:main"
+rcg-anchored-mixer = "rcg.anchored_mixer_pipeline:main"
+rcg-stable-ensemble = "rcg.stable_ensemble_pipeline:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rcg*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

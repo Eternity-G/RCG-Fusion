@@ -1,0 +1,22 @@
+{
+  "seeds": [11, 22, 33, 44, 55],
+  "corruption_seeds": [101, 202, 303],
+  "split_seed": 20260927,
+  "hidden": 128,
+  "dropout": 0.2,
+  "lr": 0.001,
+  "weight_decay": 0.01,
+  "batch_size": 64,
+  "epochs": 100,
+  "patience": 10,
+  "noise_levels": [0.25, 0.5, 1.0, 2.0],
+  "mask_levels": [0.25, 0.5, 0.75],
+  "epsilons": [0.0, 0.01, 0.05],
+  "quantile": 0.9,
+  "min_unique_high": 30,
+  "bootstrap": 10000,
+  "bootstrap_seed": 90210,
+  "tmc_anneal_epochs": 10,
+  "threads": 4,
+  "device": "auto"
+}
