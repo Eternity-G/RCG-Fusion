@@ -149,6 +149,7 @@ class AnalyticResidualListwiseRouter(nn.Module):
 def listwise_router_objective(output: dict[str, torch.Tensor], labels: torch.Tensor,
                               targets: dict[str, torch.Tensor], *,
                               route_temperature: float = .2,
+                              list_weight: float = 1.,
                               pair_weight: float = .5,
                               stable_weight: float = .2,
                               posterior_weight: float = 1.,
@@ -181,7 +182,7 @@ def listwise_router_objective(output: dict[str, torch.Tensor], labels: torch.Ten
     one_hot = F.one_hot(labels, probability.shape[-1]).to(probability.dtype)
     brier = ((probability-one_hot)**2).sum(-1).mean()
     residual = output["residual"].square().mean()
-    total = (listwise+pair_weight*pairwise+stable_weight*stable
+    total = (list_weight*listwise+pair_weight*pairwise+stable_weight*stable
              +posterior_weight*(posterior+.1*brier)+residual_weight*residual)
     return total, {"listwise": listwise, "pairwise": pairwise, "stable": stable,
                    "posterior_nll": posterior, "posterior_brier": brier,

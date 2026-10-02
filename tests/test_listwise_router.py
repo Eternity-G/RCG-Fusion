@@ -39,6 +39,11 @@ def test_router_starts_from_analytic_prior_and_objective_is_finite():
     assert torch.isfinite(objective)
     assert all(torch.isfinite(value) for value in parts.values())
 
+    pair_only, _ = listwise_router_objective(
+        output, torch.randint(0, 3, (6,)), targets,
+        list_weight=0, pair_weight=1, stable_weight=0)
+    assert torch.isfinite(pair_only)
+
 
 def test_coalition_query_permutation_is_equivariant():
     torch.manual_seed(5); masks = torch.tensor(nonempty_coalitions(3), dtype=torch.float32)
