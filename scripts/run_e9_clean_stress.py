@@ -43,10 +43,11 @@ def policy_strengths(dataset, fold, seed):
             for variant in ("max_confidence", "negative_entropy", "analytic_pi_g2")}
 
 
-def load_context(dataset, fold, seed, masks, device):
+def load_context(dataset, fold, seed, masks, device, backbone_path=None):
     cfg = CONFIGS[dataset]
     backbone, temperatures, dims, classes = _load_backbone(
-        cfg["base"]/f"fold_{fold}/seed_{seed}/backbone.pt", device)
+        (Path(backbone_path) if backbone_path is not None else
+         cfg["base"]/f"fold_{fold}/seed_{seed}/backbone.pt"), device)
     posterior_root = Path(cfg["posterior"])/f"fold_{fold}/seed_{seed}"
     posterior_members = []
     for path in sorted(posterior_root.glob("posterior_*.pt")):

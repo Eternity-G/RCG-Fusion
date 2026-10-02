@@ -150,8 +150,9 @@ def worst_modality(curves: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def load_prediction_means(dataset: str, slug: str, method: str) -> pd.DataFrame:
-    frame = pd.read_parquet(ROOT / f"runs/formal-e9-clean-{slug}/predictions.parquet")
+def load_prediction_means(dataset: str, slug: str, method: str,
+                          run_prefix: str = "formal-e9-clean") -> pd.DataFrame:
+    frame = pd.read_parquet(ROOT / f"runs/{run_prefix}-{slug}/predictions.parquet")
     frame = frame[(frame.method == method) & (frame.corruption_type != "clean")].copy()
     pcols = sorted([column for column in frame if column.startswith("p")], key=lambda x: int(x[1:]))
     probability = frame[pcols].to_numpy(float)
@@ -162,9 +163,10 @@ def load_prediction_means(dataset: str, slug: str, method: str) -> pd.DataFrame:
     return frame.groupby(keys, as_index=False)[["sample_nll", "sample_correct"]].mean()
 
 
-def paired_bootstrap(dataset: str, slug: str, candidate: str, repetitions: int = 10_000) -> dict:
-    base = load_prediction_means(dataset, slug, "full_ensemble")
-    candidate_frame = load_prediction_means(dataset, slug, candidate)
+def paired_bootstrap(dataset: str, slug: str, candidate: str, repetitions: int = 10_000,
+                     run_prefix: str = "formal-e9-clean") -> dict:
+    base = load_prediction_means(dataset, slug, "full_ensemble", run_prefix)
+    candidate_frame = load_prediction_means(dataset, slug, candidate, run_prefix)
     keys = ["fold", "sample_id", "group_or_video_id", "label"]
     merged = base.merge(candidate_frame, on=keys, suffixes=("_base", "_candidate"), validate="one_to_one")
     merged["nll_difference"] = merged.sample_nll_candidate - merged.sample_nll_base

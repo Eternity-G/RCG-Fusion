@@ -14,7 +14,7 @@ from rcg.rcg_fusion import (
     nonempty_coalitions,
     risk_objective,
 )
-from rcg.rcg_fusion_pipeline import predict_outputs
+from rcg.rcg_fusion_pipeline import dynamic_feature_augmentation, predict_outputs
 
 
 def test_nonempty_coalitions_cover_two_and_three_modality_power_sets():
@@ -31,6 +31,28 @@ def test_coalition_dropout_has_no_empty_input_and_half_full():
     assert abs(float((masks.sum(1) == 3).float().mean())-.5) < .015
     _, counts = torch.unique(masks[masks.sum(1) < 3], dim=0, return_counts=True)
     assert (counts.max()-counts.min())/counts.float().mean() < .12
+
+
+def test_dynamic_feature_augmentation_is_reproducible_and_does_not_mutate_inputs():
+    original = [torch.ones(128, 7), torch.ones(128, 5)]
+    torch.manual_seed(19)
+    first = dynamic_feature_augmentation(original, probability=1.)
+    torch.manual_seed(19)
+    second = dynamic_feature_augmentation(original, probability=1.)
+    for source, left, right in zip(original, first, second):
+        torch.testing.assert_close(source, torch.ones_like(source))
+        torch.testing.assert_close(left, right)
+    changed = torch.stack([(value != 1).any(1) for value in first], 1)
+    assert changed.any(1).all()
+    assert (changed.sum(1) == 1).all()
+
+
+def test_dynamic_feature_augmentation_zero_probability_is_an_exact_copy():
+    source = [torch.randn(6, 4), torch.randn(6, 3)]
+    result = dynamic_feature_augmentation(source, probability=0.)
+    for before, after in zip(source, result):
+        torch.testing.assert_close(before, after)
+        assert before.data_ptr() != after.data_ptr()
 
 
 def test_backbone_rejects_empty_coalition_and_token_encoder_is_permutation_invariant():

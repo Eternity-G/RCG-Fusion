@@ -88,9 +88,52 @@ def as_tensors(split: dict, device: str):
             torch.as_tensor(split["y"], dtype=torch.long, device=device))
 
 
+def dynamic_feature_augmentation(features: list[torch.Tensor], *, probability: float = .5,
+                                 gaussian_levels=(.25, .5, 1., 2.),
+                                 mask_levels=(.25, .5, .75)) -> list[torch.Tensor]:
+    """Apply one randomly sampled feature degradation to selected rows.
+
+    Each selected row receives either Gaussian noise or feature masking on
+    exactly one modality. Inputs are cloned and never modified in place. The
+    function uses PyTorch's seeded RNG, so ``seed_all`` controls reproducibility.
+    """
+    if not features or not 0 <= probability <= 1:
+        raise ValueError("features must be nonempty and probability must be in [0, 1]")
+    batch = len(features[0])
+    if any(len(feature) != batch for feature in features):
+        raise ValueError("all modalities must contain the same batch size")
+    result = [feature.clone() for feature in features]
+    if batch == 0 or probability == 0:
+        return result
+    device = features[0].device
+    active = torch.rand(batch, device=device) < probability
+    modality = torch.randint(len(features), (batch,), device=device)
+    corruption = torch.randint(2, (batch,), device=device)
+    gaussian_levels = torch.as_tensor(gaussian_levels, dtype=features[0].dtype, device=device)
+    mask_levels = torch.as_tensor(mask_levels, dtype=features[0].dtype, device=device)
+    gaussian_level = gaussian_levels[torch.randint(len(gaussian_levels), (batch,), device=device)]
+    mask_level = mask_levels[torch.randint(len(mask_levels), (batch,), device=device)]
+    for modality_index, feature in enumerate(features):
+        gaussian_rows = torch.nonzero(
+            active & (modality == modality_index) & (corruption == 0), as_tuple=False).flatten()
+        if len(gaussian_rows):
+            noise = torch.randn(feature[gaussian_rows].shape, dtype=feature.dtype, device=feature.device)
+            result[modality_index][gaussian_rows] += gaussian_level[gaussian_rows, None] * noise
+        mask_rows = torch.nonzero(
+            active & (modality == modality_index) & (corruption == 1), as_tuple=False).flatten()
+        if len(mask_rows):
+            drop = torch.rand(feature[mask_rows].shape, device=feature.device) < mask_level[mask_rows, None]
+            empty = ~drop.any(1)
+            if empty.any():
+                drop[empty, torch.randint(feature.shape[1], (int(empty.sum()),), device=feature.device)] = True
+            result[modality_index][mask_rows] = result[modality_index][mask_rows].masked_fill(drop, 0.)
+    return result
+
+
 def fit_backbone(model: CoalitionAwareBackbone, train_split: dict, selection_split: dict,
                  *, seed: int, epochs: int, batch_size: int, patience: int = 10,
-                 learning_rate: float = 1e-3) -> list[dict]:
+                 learning_rate: float = 1e-3,
+                 augmentation_probability: float = 0.) -> list[dict]:
     seed_all(seed)
     device = str(next(model.parameters()).device)
     train_x, train_y = as_tensors(train_split, device)
@@ -101,8 +144,12 @@ def fit_backbone(model: CoalitionAwareBackbone, train_split: dict, selection_spl
         model.train(); values = []
         for index in torch.randperm(len(train_y), device=device).split(batch_size):
             mask = draw_coalition_masks(len(index), model.n_modalities, device)
+            batch_features = [x[index] for x in train_x]
+            if augmentation_probability:
+                batch_features = dynamic_feature_augmentation(
+                    batch_features, probability=augmentation_probability)
             optimizer.zero_grad(set_to_none=True)
-            logits = model([x[index] for x in train_x], mask)["logits"]
+            logits = model(batch_features, mask)["logits"]
             loss = F.cross_entropy(logits, train_y[index])
             if not torch.isfinite(loss):
                 raise FloatingPointError("non-finite coalition-backbone loss")
