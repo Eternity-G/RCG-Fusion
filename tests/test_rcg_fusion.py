@@ -9,6 +9,7 @@ from rcg.rcg_fusion import (
     build_teacher_targets,
     conformal_intervals,
     draw_coalition_masks,
+    draw_modality_dropout_masks,
     exact_shapley_from_losses,
     fit_joint_conformal,
     nonempty_coalitions,
@@ -31,6 +32,17 @@ def test_coalition_dropout_has_no_empty_input_and_half_full():
     assert abs(float((masks.sum(1) == 3).float().mean())-.5) < .015
     _, counts = torch.unique(masks[masks.sum(1) < 3], dim=0, return_counts=True)
     assert (counts.max()-counts.min())/counts.float().mean() < .12
+
+
+def test_modality_dropout_masks_are_nonempty_and_independently_sampled():
+    torch.manual_seed(8)
+    masks = draw_modality_dropout_masks(40000, 3, "cpu", keep_probability=.5)
+    assert (masks.sum(1) > 0).all()
+    # Repairing empty rows raises the marginal above .5 but preserves symmetry.
+    marginal = masks.mean(0)
+    assert float(marginal.max()-marginal.min()) < .015
+    assert .53 < float(marginal.mean()) < .56
+    assert .10 < float((masks.sum(1) == 3).float().mean()) < .15
 
 
 def test_dynamic_feature_augmentation_is_reproducible_and_does_not_mutate_inputs():

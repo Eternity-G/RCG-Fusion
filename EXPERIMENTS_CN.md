@@ -1100,13 +1100,64 @@ CREMA-D的五个演员外测试折按测试样本数加权聚合。配对bootstr
 
 ## E10：模态缺失与任意可用联盟
 
-**状态：** 🔴 待运行。
+**状态：** ✅ 已完成。四个数据集的全部非空可用联盟均已评估。
 
 三模态数据测试全部7个非空可用联盟，二模态数据测试全部3个非空联盟。缺失模态不得进入标签后验输入、候选集合或动作混合。比较完整输入训练后清零、modality dropout和coalition dropout。
 
 AV-MNIST用于检查强互补场景：完整系统应在多数干净样本中保留完整联盟优势，而不是为了显示动态性而频繁删除模态。MOSI、MOSEI和CREMA-D则用于检查部分联盟是否能在冲突或冗余样本中降低强制完整融合损失。
 
-**结果图表：** Table 7报告质量退化和缺失；Figure E报告连续曲线和不同可用联盟下的性能。
+### E10.1 实验设置与缺失安全约束
+
+三种任务骨干采用相同架构、训练划分、五个训练种子和早停规则：`full-only + zeroing`只见完整输入，测试时将缺失表示清零但仍按完整输入前向；`modality dropout`独立以0.5概率保留每个模态并修复空集合；`coalition dropout`以0.5概率使用完整联盟、0.5概率均匀采样非空不完整联盟。主比较使用五成员概率平均。CREMA-D五个演员外测试折按样本数加权聚合。
+
+availability-safe RCG使用已有clean训练的标签后验和候选混合器，但增加三个结构约束：缺失模态token在标签后验中严格置零；包含缺失模态的联盟不能参与后验注意力或候选排序；当只有一个合法联盟时精确回退该联盟且收缩系数为零。单元测试通过改变缺失表示和无效联盟概率验证后验不变性。每个可用联盟的收缩强度只由对应selection输入确定，测试标签只用于指标和oracle分析。
+
+配对bootstrap先在每个原始样本内平均所有不完整可用联盟，再按MOSI/MOSEI原视频、CREMA-D演员或AV-MNIST类别分层样本重采样10,000次。因此多个缺失模式不被当成新增独立样本。
+
+![E10模态缺失和任意可用联盟](figures/e10_missing_coalitions.png)
+
+### E10.2 不完整联盟主结果
+
+| 数据集 | 清零 Accuracy / NLL | Modality dropout Accuracy / NLL | Coalition dropout Accuracy / NLL | Availability-safe RCG Accuracy / NLL | 可用联盟参考后悔 | 参考联盟oracle率 |
+|---|---:|---:|---:|---:|---:|---:|
+| MOSI | 0.6616 / 0.5753 | 0.6563 / 0.5764 | 0.6639 / 0.5727 | **0.6651 / 0.5716** | 0.0548 | 63.97% |
+| MOSEI | 0.7353 / 0.5039 | 0.7394 / 0.4977 | **0.7423 / 0.4968** | 0.7427 / 0.4969 | 0.0570 | 65.45% |
+| CREMA-D | 0.4342 / 1.4424 | **0.5137 / 1.2595** | 0.5066 / 1.2720 | 0.5066 / 1.2720 | 0 | 100% |
+| AV-MNIST | 0.7317 / 0.7898 | **0.9099 / 0.2772** | 0.9019 / 0.3064 | 0.9019 / 0.3064 | 0 | 100% |
+
+二模态数据的不完整可用集合均为单模态，已经没有更小的非空联盟可选，因此参考后悔严格为零，availability-safe RCG按协议与coalition dropout完全相同。三模态数据的双模态可用集合仍可退回单模态，MOSI/MOSEI的不完整联盟平均参考后悔分别为0.0548/0.0570，说明缺失一个模态后仍存在进一步选择空间。
+
+### E10.3 配对统计和协议判读
+
+| 比较（不完整联盟平均） | MOSI $\Delta$NLL [95% CI] | MOSEI $\Delta$NLL [95% CI] | CREMA-D $\Delta$NLL [95% CI] | AV-MNIST $\Delta$NLL [95% CI] |
+|---|---:|---:|---:|---:|
+| Coalition dropout − 清零 | -0.00263 [-0.01091, 0.00524] | **-0.00704 [-0.01120, -0.00294]** | **-0.17031 [-0.19230, -0.14894]** | **-0.48345 [-0.49854, -0.46853]** |
+| Coalition dropout − Modality dropout | -0.00373 [-0.00903, 0.00115] | -0.00090 [-0.00407, 0.00218] | **+0.01253 [0.00390, 0.02100]** | **+0.02921 [0.02472, 0.03367]** |
+| Availability-safe RCG − Coalition dropout | **-0.00108 [-0.00193, -0.00020]** | +0.00010 [-0.00051, 0.00074] | 0 | 0 |
+
+未经缺失训练的清零在CREMA-D和AV-MNIST显著失效，说明测试时清零不能作为有效删除协议。Coalition dropout相对清零在MOSEI、CREMA-D和AV-MNIST显著改善，MOSI方向有利但CI跨零。Coalition dropout并未在所有缺失条件下优于普通modality dropout：CREMA-D和AV-MNIST的单模态输入上，modality dropout反而更好。这与采样分布一致——独立dropout给予单模态组合更高训练频率，而本文coalition dropout保留50%完整输入，以兼顾干净完整联盟。论文不能把coalition dropout表述成所有缺失模式上的普遍最优训练策略。
+
+MOSI中availability-safe RCG相对coalition dropout进一步显著降低NLL，但Accuracy改善的95% CI仍跨零；MOSEI没有稳定增益。二模态单模态输入触发精确回退，既不人为制造动态性，也不会因后验校正破坏唯一合法预测。
+
+### E10.4 完整可用联盟与强互补边界
+
+完整联盟条件下，availability-safe RCG相对coalition dropout的NLL差异为：MOSI -0.00372，95% CI [-0.00678, -0.00037]；MOSEI -0.00060，CI跨零；CREMA-D -0.00968，95% CI [-0.01429, -0.00491]；AV-MNIST -0.00171，95% CI [-0.00309, -0.00014]。CREMA-D的Accuracy同时提高0.403个百分点，演员簇CI为[0.040, 0.793]个百分点；其余数据集Accuracy未获得稳定支持。
+
+AV-MNIST中完整图像+音频联盟在95.72%的样本上就是全部合法联盟中的oracle，完整联盟NLL为0.0278，RCG为0.0261。该结果确认强互补任务中系统基本保留完整融合，而不是为了显示路由动态性频繁删除模态。相比之下，完整联盟oracle率在MOSI、MOSEI和CREMA-D分别只有14.63%、12.91%和54.33%，说明前两个文本情感数据中存在很大的标签oracle联盟空间；RCG只实现其中很小一部分，不能用oracle上界代替实际方法收益。
+
+**E10结论。** 联盟有效训练对于可靠的模态缺失评估是必要条件，但具体采样分布决定了完整输入与极端缺失之间的权衡。RCG的缺失安全实现已经满足合法联盟约束，并在MOSI不完整联盟及MOSI、CREMA-D、AV-MNIST完整联盟上改善NLL；它没有在MOSEI或单模态无选择条件下制造虚假收益。该结果支持“任意合法联盟推理”和“无合法替代时回退”，但不支持“coalition dropout在所有缺失模式上优于modality dropout”的更强主张。
+
+**产物路径：**
+
+- `runs/formal-e10-backbones/{dataset}/{mode}/fold_{fold}/seed_{seed}/backbone.pt`
+- `runs/formal-e10-{dataset}/metrics_by_fold_alliance.csv`
+- `runs/formal-e10-{dataset}/predictions.parquet`
+- `runs/formal-e10-{dataset}/oracle_by_fold_alliance.csv`
+- `results/e10_alliance_metrics.csv`
+- `results/e10_alliance_oracle.csv`
+- `results/e10_incomplete_summary.csv`
+- `results/e10_missing_bootstrap.csv`
+- `figures/e10_missing_coalitions.png`
 
 ---
 
@@ -1258,7 +1309,7 @@ label
 | AV-MNIST分层bootstrap | ✅ 已完成 | Accuracy、Macro-F1、NLL、Brier和ECE均获得分层bootstrap支持 |
 | 完整逐层消融 | ✅ 已完成 | 机制链、单成员部署链和真实A7→A8桥接均已完成 |
 | 最新系统连续质量退化 | ✅ 已完成 | clean-only与共享增强骨干两协议完成；共享增强后A7只在CREMA-D保留稳定增益 |
-| 最新系统模态缺失 | 🔴 待运行 | E10尚未开始 |
+| 最新系统模态缺失 | ✅ 已完成 | 全联盟评估与缺失安全RCG完成；清零伪象被排除 |
 | Base + RCG骨干迁移 | 🔴 待运行 | 至少三个骨干 |
 | 完整效率分析 | 🔴 待运行 | 参数、延迟、显存和GPU小时 |
 

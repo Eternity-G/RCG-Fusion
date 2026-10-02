@@ -36,6 +36,7 @@ from .io import load_json, write_json
 from .rcg_fusion import (CoalitionAwareBackbone, CoalitionRiskPredictor,
                          ConformalSafeSelector, build_teacher_targets,
                          coalition_losses, draw_coalition_masks,
+                         draw_modality_dropout_masks,
                          evaluate_all_coalitions, fit_joint_conformal,
                          nonempty_coalitions, risk_objective)
 from .strong_observation import cremadsplits, mmsasplits
@@ -133,7 +134,8 @@ def dynamic_feature_augmentation(features: list[torch.Tensor], *, probability: f
 def fit_backbone(model: CoalitionAwareBackbone, train_split: dict, selection_split: dict,
                  *, seed: int, epochs: int, batch_size: int, patience: int = 10,
                  learning_rate: float = 1e-3,
-                 augmentation_probability: float = 0.) -> list[dict]:
+                 augmentation_probability: float = 0.,
+                 coalition_sampling: str = "coalition") -> list[dict]:
     seed_all(seed)
     device = str(next(model.parameters()).device)
     train_x, train_y = as_tensors(train_split, device)
@@ -143,7 +145,14 @@ def fit_backbone(model: CoalitionAwareBackbone, train_split: dict, selection_spl
     for epoch in range(epochs):
         model.train(); values = []
         for index in torch.randperm(len(train_y), device=device).split(batch_size):
-            mask = draw_coalition_masks(len(index), model.n_modalities, device)
+            if coalition_sampling == "coalition":
+                mask = draw_coalition_masks(len(index), model.n_modalities, device)
+            elif coalition_sampling == "modality_dropout":
+                mask = draw_modality_dropout_masks(len(index), model.n_modalities, device)
+            elif coalition_sampling == "full_only":
+                mask = torch.ones((len(index), model.n_modalities), device=device)
+            else:
+                raise ValueError(f"unknown coalition sampling mode: {coalition_sampling}")
             batch_features = [x[index] for x in train_x]
             if augmentation_probability:
                 batch_features = dynamic_feature_augmentation(

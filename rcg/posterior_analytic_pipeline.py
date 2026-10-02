@@ -82,10 +82,12 @@ def train_posterior(model, train_split, oof_probabilities, selection_split,
 
 
 @torch.inference_mode()
-def predict_posterior(model, split, probabilities, masks, device):
+def predict_posterior(model, split, probabilities, masks, device, availability=None):
     xs, _ = _tensors(split, device)
+    available = (None if availability is None else
+                 torch.as_tensor(availability, dtype=torch.float32, device=device))
     output = model(xs, torch.as_tensor(probabilities, dtype=torch.float32, device=device),
-                   torch.as_tensor(masks, dtype=torch.float32, device=device))
+                   torch.as_tensor(masks, dtype=torch.float32, device=device), available)
     return {key: value.cpu().numpy() for key, value in output.items()}
 
 

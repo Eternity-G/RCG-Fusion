@@ -69,8 +69,9 @@ def load_context(dataset, fold, seed, masks, device, backbone_path=None):
             "strengths": policy_strengths(dataset, fold, seed), "classes": classes}
 
 
-def posterior(context, split, probabilities, masks, device):
-    members = [predict_posterior(model, split, probabilities, masks, device)["posterior"]
+def posterior(context, split, probabilities, masks, device, availability=None):
+    members = [predict_posterior(
+        model, split, probabilities, masks, device, availability=availability)["posterior"]
                for model in context["posterior_members"]]
     return np.mean(calibrate_members(members, context["posterior_temperature"]), axis=0)
 

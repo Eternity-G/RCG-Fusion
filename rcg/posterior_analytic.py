@@ -69,10 +69,19 @@ class RelationalPosteriorEstimator(nn.Module):
             for i in range(modalities)
         ]
         singleton = coalition_probabilities[:, singleton_indices]
+        if availability is None:
+            availability = torch.ones(
+                (len(xs[0]), modalities), device=xs[0].device, dtype=xs[0].dtype)
+        else:
+            availability = availability.to(xs[0].device, xs[0].dtype)
+            if availability.shape != (len(xs[0]), modalities):
+                raise ValueError("availability has incompatible shape")
+            if (availability.sum(1) == 0).any():
+                raise ValueError("at least one modality must be available")
+        uniform = torch.full_like(singleton, 1./self.classes)
+        singleton = torch.where(availability[:, :, None].bool(), singleton, uniform)
         entropy = self.entropy(singleton)
         confidence = singleton.max(-1).values
-        if availability is None:
-            availability = torch.ones_like(confidence)
         raw = torch.stack([
             projector(x) for projector, x in zip(self.feature_projectors, xs)
         ], 1)
@@ -80,14 +89,15 @@ class RelationalPosteriorEstimator(nn.Module):
         tokens = (raw + self.probability_projector(singleton)
                   + self.scalar_projector(scalars)
                   + self.modality_embedding[None].to(raw.dtype))
+        tokens = tokens*availability[:, :, None]
 
-        active = masks[None, :, :, None]
+        active = masks[None, :, :, None]*availability[:, None, :, None]
         pooled = (tokens[:, None] * active).sum(2) / active.sum(2).clamp_min(1)
         relation_sum = torch.zeros(
             (len(xs[0]), len(masks), 5), device=raw.device, dtype=raw.dtype)
         relation_max = torch.full_like(relation_sum, -torch.inf)
         pair_count = torch.zeros(
-            (1, len(masks), 1), device=raw.device, dtype=raw.dtype)
+            (len(xs[0]), len(masks), 1), device=raw.device, dtype=raw.dtype)
         for i, j in combinations(range(modalities), 2):
             pi, pj = singleton[:, i].clamp_min(1e-8), singleton[:, j].clamp_min(1e-8)
             middle = .5 * (pi + pj)
@@ -99,7 +109,8 @@ class RelationalPosteriorEstimator(nn.Module):
                 (confidence[:, i]-confidence[:, j]).abs(),
                 (entropy[:, i]-entropy[:, j]).abs(),
             ], -1)[:, None]
-            on = (masks[:, i] * masks[:, j]).bool()[None, :, None]
+            on = ((masks[:, i] * masks[:, j]).bool()[None, :, None]
+                  & (availability[:, i] * availability[:, j]).bool()[:, None, None])
             relation_sum += values * on
             relation_max = torch.where(on, torch.maximum(relation_max, values), relation_max)
             pair_count += on.to(raw.dtype)
@@ -118,10 +129,17 @@ class RelationalPosteriorEstimator(nn.Module):
         query = (pooled + relations + self.mask_projector(masks)[None]
                  + self.size_embedding(masks.sum(1).long())[None]
                  + self.coalition_probability(cp_state))
-        encoded = self.encoder(query)
-        global_token = tokens.mean(1)
+        valid_query = (masks[None] <= availability[:, None]).all(2)
+        encoded = self.encoder(query, src_key_padding_mask=~valid_query)
+        reference_match = (masks[None] == availability[:, None]).all(2)
+        if not reference_match.any(1).all():
+            raise ValueError("availability must correspond to a nonempty coalition mask")
+        reference_index = reference_match.float().argmax(1)
+        rows = torch.arange(len(encoded), device=encoded.device)
+        reference = encoded[rows, reference_index]
+        global_token = tokens.sum(1)/availability.sum(1, keepdim=True).clamp_min(1)
         logits = self.posterior_head(
-            torch.cat([encoded[:, len(masks)-1], global_token], -1))
+            torch.cat([reference, global_token], -1))
         return {"posterior_logits": logits, "posterior": logits.softmax(-1)}
 
 

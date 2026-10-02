@@ -52,6 +52,38 @@ def test_posterior_model_and_proper_objective_are_finite():
     assert loss.isfinite() and all(value.isfinite() for value in parts.values())
 
 
+def test_unavailable_modalities_and_invalid_coalitions_do_not_change_posterior():
+    torch.manual_seed(41)
+    masks = torch.tensor(nonempty_coalitions(3), dtype=torch.float32)
+    model = RelationalPosteriorEstimator(
+        [4, 3, 2], classes=2, n_coalitions=len(masks), hidden=16,
+        heads=4, layers=1, dropout=0).eval()
+    xs = [torch.randn(5, 4), torch.randn(5, 3), torch.randn(5, 2)]
+    probability = torch.softmax(torch.randn(5, len(masks), 2), -1)
+    availability = torch.tensor([[1., 0., 1.]]).repeat(5, 1)
+    first = model(xs, probability, masks, availability)["posterior"]
+    changed_x = [xs[0], torch.randn_like(xs[1])*100, xs[2]]
+    changed_probability = probability.clone()
+    invalid = ~((masks <= availability[0]).all(1))
+    changed_probability[:, invalid] = torch.softmax(
+        torch.randn_like(changed_probability[:, invalid])*100, -1)
+    second = model(changed_x, changed_probability, masks, availability)["posterior"]
+    torch.testing.assert_close(first, second, atol=1e-5, rtol=1e-5)
+
+
+def test_all_available_path_matches_legacy_posterior_path():
+    torch.manual_seed(43)
+    masks = torch.tensor(nonempty_coalitions(2), dtype=torch.float32)
+    model = RelationalPosteriorEstimator(
+        [3, 4], classes=3, n_coalitions=len(masks), hidden=16,
+        heads=4, layers=1, dropout=0).eval()
+    xs = [torch.randn(7, 3), torch.randn(7, 4)]
+    probability = torch.softmax(torch.randn(7, len(masks), 3), -1)
+    legacy = model(xs, probability, masks)["posterior"]
+    explicit = model(xs, probability, masks, torch.ones(7, 2))["posterior"]
+    torch.testing.assert_close(legacy, explicit, atol=1e-6, rtol=1e-6)
+
+
 def test_candidate_excludes_full_and_unavailable_modalities_and_is_deterministic():
     masks = nonempty_coalitions(3)
     probability = np.array([[

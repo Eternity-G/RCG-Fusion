@@ -39,6 +39,21 @@ def draw_coalition_masks(n: int, n_modalities: int, device: torch.device | str) 
     return torch.where(torch.rand((n, 1), device=device) < .5, full, sampled)
 
 
+def draw_modality_dropout_masks(n: int, n_modalities: int,
+                                device: torch.device | str,
+                                keep_probability: float = .5) -> torch.Tensor:
+    """Draw independent modality-dropout masks and repair empty rows."""
+    if n_modalities < 1 or not 0 < keep_probability <= 1:
+        raise ValueError("modalities must be positive and keep_probability in (0, 1]")
+    mask = (torch.rand((n, n_modalities), device=device) < keep_probability).float()
+    empty = mask.sum(1) == 0
+    if empty.any():
+        rows = torch.nonzero(empty, as_tuple=False).flatten()
+        columns = torch.randint(n_modalities, (len(rows),), device=device)
+        mask[rows, columns] = 1.
+    return mask
+
+
 class CoalitionAwareBackbone(nn.Module):
     """A shared task model whose explicit mask makes every coalition valid."""
 
