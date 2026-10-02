@@ -26,13 +26,17 @@ class AnchoredCandidateMixer(nn.Module):
     toward action zero on the selection split.
     """
 
-    def __init__(self, classes: int, hidden: int = 64):
+    def __init__(self, classes: int, hidden: int = 64, *, anchor_full: bool = True):
         super().__init__()
         # p, log(p), q, log(q), |p-q|, H(p), H(q), action type/rank (5)
         width = classes * 5 + 2 + 5
         self.scorer = nn.Sequential(nn.Linear(width, hidden), nn.ReLU(),
                                     nn.Dropout(.15), nn.Linear(hidden, 1))
-        self.full_bias = nn.Parameter(torch.tensor(1.0))
+        self.anchor_full = bool(anchor_full)
+        if self.anchor_full:
+            self.full_bias = nn.Parameter(torch.tensor(1.0))
+        else:
+            self.register_buffer("full_bias", torch.tensor(0.0))
 
     def forward(self, actions: torch.Tensor, posterior: torch.Tensor):
         if actions.ndim != 3 or posterior.ndim != 2:

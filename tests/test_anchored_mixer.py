@@ -29,6 +29,10 @@ def test_mixer_is_convex_and_objective_is_finite():
     assert torch.allclose(shrink_to_full(actions[:, 0], output["probability"], 0),
                           actions[:, 0])
 
+    ordinary = AnchoredCandidateMixer(3, anchor_full=False)
+    assert not ordinary.anchor_full
+    assert ordinary.full_bias.item() == 0
+
 
 def test_adaptive_policy_is_bounded_and_label_free():
     full = torch.tensor([[.8, .2], [.4, .6]]).numpy()
