@@ -1,0 +1,13 @@
+dataset,case_type,selected
+avmnist,full_retention,5
+avmnist,negative_flip,5
+avmnist,successful_correction,5
+cremad,high_reliability_harm,5
+cremad,negative_flip,5
+cremad,successful_correction,5
+mosei,high_reliability_harm,5
+mosei,negative_flip,5
+mosei,successful_correction,5
+mosi,high_reliability_harm,5
+mosi,negative_flip,5
+mosi,successful_correction,5
