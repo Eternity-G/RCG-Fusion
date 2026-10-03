@@ -1,0 +1,88 @@
+{
+  "method_version": "rcg-fusion-a8-v1",
+  "stages": [
+    "grouped_oof_coalition_supervision",
+    "posterior_analytic_contribution",
+    "analytic_anchored_listwise_candidates",
+    "anchored_candidate_mixer",
+    "contribution_probability_shrinkage",
+    "joint_full_a7_convex_aggregation_with_fallback"
+  ],
+  "selection_only_parameters": [
+    "A7 strength",
+    "simplex weights",
+    "fallback rho"
+  ],
+  "test_labels_role": "evaluation and offline analysis only",
+  "combined_prediction_hash": "90abbd62d71e7aa71e9798bd9e86536b48ad41980609e07766cfb036b8a72fa2",
+  "datasets": [
+    {
+      "dataset": "mosi",
+      "method_version": "rcg-fusion-a8-v1",
+      "n_samples": 656,
+      "n_folds": 1,
+      "n_classes": 2,
+      "prediction_hash": "b0d8d7277071f7381a19f201bd946733ca6ac669a173b09ea55b5a5a33f9c1ed",
+      "full_accuracy": 0.7972560975609756,
+      "final_accuracy": 0.8033536585365854,
+      "accuracy_gain": 0.0060975609756097615,
+      "full_nll": 0.4504459928301039,
+      "final_nll": 0.4417996512204874,
+      "nll_gain": 0.00864634160961647,
+      "prediction_path": "runs\\formal-e8-mosi\\final_predictions.parquet"
+    },
+    {
+      "dataset": "mosei",
+      "method_version": "rcg-fusion-a8-v1",
+      "n_samples": 3634,
+      "n_folds": 1,
+      "n_classes": 2,
+      "prediction_hash": "e3760ee1b4ebd2fe957d7a6d4f1cbdb7391856b40903154be67411d33ef0d685",
+      "full_accuracy": 0.8434232250963126,
+      "final_accuracy": 0.841221794166208,
+      "accuracy_gain": -0.0022014309301046087,
+      "full_nll": 0.3555650985109275,
+      "final_nll": 0.35630636468641286,
+      "nll_gain": -0.0007412661754853667,
+      "prediction_path": "runs\\formal-e8-mosei\\final_predictions.parquet"
+    },
+    {
+      "dataset": "cremad",
+      "method_version": "rcg-fusion-a8-v1",
+      "n_samples": 7442,
+      "n_folds": 5,
+      "n_classes": 6,
+      "prediction_hash": "290ea9a5a0a088a2518ec6428aa1b6c485b31ecb659a0f1d29d163860b4105dc",
+      "full_accuracy": 0.6343724805159904,
+      "final_accuracy": 0.6353130878796023,
+      "accuracy_gain": 0.0009406073636119006,
+      "full_nll": 0.9738392429392041,
+      "final_nll": 0.9654904822524121,
+      "nll_gain": 0.008348760686792023,
+      "prediction_path": "runs\\formal-e8-cremad\\final_predictions.parquet"
+    },
+    {
+      "dataset": "avmnist",
+      "method_version": "rcg-fusion-a8-v1",
+      "n_samples": 3600,
+      "n_folds": 1,
+      "n_classes": 10,
+      "prediction_hash": "3680ab5fbeed7d9234629def66d7f55b9d42e718810e2d42a1a5d9ac3f5d6fb0",
+      "full_accuracy": 0.9919444444444444,
+      "final_accuracy": 0.9933333333333333,
+      "accuracy_gain": 0.001388888888888884,
+      "full_nll": 0.027798334701222203,
+      "final_nll": 0.021296707742498464,
+      "nll_gain": 0.006501626958723739,
+      "prediction_path": "runs\\formal-e8-avmnist\\final_predictions.parquet"
+    }
+  ],
+  "legacy_audit": {
+    "E1": "historical full-plus-posterior aggregation; must be regenerated from canonical predictions",
+    "E7": "historical aggregation decomposition; not the canonical full pipeline",
+    "E8": "canonical clean final system source",
+    "E9": "uses canonical A7 member actions and E8-fitted clean aggregation parameters",
+    "E11": "adapter transfer protocol; must be regenerated under S4 for canonical system claims",
+    "E13": "loads canonical E8 final predictions by sample id and fold"
+  }
+}

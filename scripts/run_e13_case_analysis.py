@@ -14,6 +14,7 @@ import torch
 
 from rcg.anchored_mixer import AnchoredCandidateMixer
 from rcg.anchored_mixer_pipeline import predict_mixer
+from rcg.final_system import METHOD_VERSION
 from rcg.listwise_router import AnalyticResidualListwiseRouter
 from rcg.listwise_router_pipeline import apply_residual_blend, predict_router
 from rcg.posterior_analytic_pipeline import _load_backbone
@@ -94,20 +95,21 @@ def member_detail(dataset, fold, splits, names, seed, device):
     return result
 
 
-def final_from_e8(dataset, fold, full, a7):
-    table = pd.read_csv(ROOT/f"runs/formal-e8-{dataset}/weights.csv")
-    table = table[table.fold == fold]
-    weight = []
-    for seed in SEEDS:
-        for suffix in ("full", "a7"):
-            row = table[table.action == f"seed_{seed}_{suffix}"]
-            weight.append(float(row.weight.iloc[0]))
-    actions = np.empty((2*len(SEEDS), *full.shape[1:]), dtype=np.float64)
-    for index in range(len(SEEDS)):
-        actions[2*index] = full[index]; actions[2*index+1] = a7[index]
-    convex = np.sum(np.asarray(weight)[:, None, None]*actions, axis=0)
-    rho = float(table.rho.iloc[0]); full_ensemble = full.mean(0)
-    return full_ensemble, (1-rho)*full_ensemble+rho*convex, rho
+def final_from_e8(dataset, fold, sample_ids):
+    """Load the canonical final probabilities instead of reconstructing A8 locally."""
+    path = ROOT/f"runs/formal-e8-{dataset}/final_predictions.parquet"
+    table = pd.read_parquet(path)
+    table = table[table.fold == fold].copy()
+    table.sample_id = table.sample_id.astype(str)
+    table = table.set_index("sample_id").loc[np.asarray(sample_ids, dtype=str)].reset_index()
+    if not (table.method_version == METHOD_VERSION).all():
+        raise ValueError(f"noncanonical method version in {path}")
+    pcols = sorted((column for column in table if column.startswith("p")),
+                   key=lambda value: int(value[1:]))
+    fullcols = sorted((column for column in table if column.startswith("full_p")),
+                      key=lambda value: int(value[6:]))
+    return (table[fullcols].to_numpy(), table[pcols].to_numpy(),
+            float(table.fallback_rho.iloc[0]))
 
 
 def json_map(names, values, digits=4):
@@ -121,9 +123,7 @@ def build_fold_records(dataset, fold, splits, names, members):
     calibration = [item["calibration"] for item in members]
     probability = np.mean([item["probabilities"] for item in test], axis=0)
     calibration_probability = np.mean([item["probabilities"] for item in calibration], axis=0)
-    full_members = np.asarray([item["probabilities"][:, -1] for item in test])
-    a7_members = np.asarray([item["a7"] for item in test])
-    full, final, rho = final_from_e8(dataset, fold, full_members, a7_members)
+    full, final, rho = final_from_e8(dataset, fold, splits["test"]["id"])
     posterior = np.mean([item["posterior"] for item in test], axis=0)
     analytic = np.mean([item["analytic"] for item in test], axis=0)
     route = np.mean([item["route"] for item in test], axis=0)
@@ -155,6 +155,7 @@ def build_fold_records(dataset, fold, splits, names, members):
         full_advantage = float(coalition_loss[index, :-1].min()-coalition_loss[index, -1])
         records.append({
             "dataset": dataset, "fold": fold, "sample_id": str(splits["test"]["id"][index]),
+            "method_version": METHOD_VERSION,
             "group_or_video_id": str(splits["test"]["group"][index]), "label": int(y[index]),
             "base_prediction": int(full_prediction[index]),
             "final_prediction": int(final_prediction[index]),
@@ -326,8 +327,13 @@ def main():
     render(cases, figure)
     counts = cases.groupby(["dataset", "case_type"]).size().rename("selected").reset_index()
     counts.to_csv(output/"e13_case_counts.csv", index=False)
+    source_hashes = {
+        dataset: json.loads((ROOT/f"runs/formal-e8-{dataset}/manifest.json").read_text(
+            encoding="utf-8"))["prediction_hash"] for dataset in DATASETS
+    }
     (output/"e13_manifest.json").write_text(json.dumps({
         "experiment": "E13 rule-based cases", "task_seeds": list(SEEDS),
+        "method_version": METHOD_VERSION, "source_prediction_hashes": source_hashes,
         "success_rule": "base wrong, A8 final correct; top 5 by CE benefit",
         "failure_rule": "base correct, A8 final wrong; top 5 by CE damage",
         "harm_rule": "ensemble singleton reliability >= calibration q90 and deletion contribution < -0.01; top 5 by harm",

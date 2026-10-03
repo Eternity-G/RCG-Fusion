@@ -7,6 +7,13 @@
     44,
     55
   ],
+  "method_version": "rcg-fusion-a8-v1",
+  "source_prediction_hashes": {
+    "mosi": "b0d8d7277071f7381a19f201bd946733ca6ac669a173b09ea55b5a5a33f9c1ed",
+    "mosei": "e3760ee1b4ebd2fe957d7a6d4f1cbdb7391856b40903154be67411d33ef0d685",
+    "cremad": "290ea9a5a0a088a2518ec6428aa1b6c485b31ecb659a0f1d29d163860b4105dc",
+    "avmnist": "3680ab5fbeed7d9234629def66d7f55b9d42e718810e2d42a1a5d9ac3f5d6fb0"
+  },
   "success_rule": "base wrong, A8 final correct; top 5 by CE benefit",
   "failure_rule": "base correct, A8 final wrong; top 5 by CE damage",
   "harm_rule": "ensemble singleton reliability >= calibration q90 and deletion contribution < -0.01; top 5 by harm",

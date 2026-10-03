@@ -12,6 +12,8 @@ import torch
 
 from rcg.anchored_mixer import AnchoredCandidateMixer
 from rcg.anchored_mixer_pipeline import predict_mixer
+from rcg.final_system import (METHOD_VERSION, fit_final_system, method_manifest,
+                              prediction_hash)
 from rcg.listwise_router import AnalyticResidualListwiseRouter
 from rcg.listwise_router_pipeline import apply_residual_blend, predict_router
 from rcg.posterior_analytic_pipeline import _load_backbone
@@ -19,7 +21,6 @@ from rcg.posterior_shrinkage_pipeline import probability_metrics
 from rcg.projected_fusion_pipeline import load_posteriors
 from rcg.rcg_fusion import nonempty_coalitions
 from rcg.rcg_fusion_pipeline import attach_observed_losses, load_dataset, predict_outputs
-from rcg.stable_ensemble import fit_simplex_weights, mix_actions, select_safe_shrinkage
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,7 +86,7 @@ def member_outputs(dataset, fold_index, splits, names, seed, device):
 def run_dataset(dataset, device):
     folds, names = load_dataset(dataset, ROOT/"data")
     root = ROOT/f"runs/formal-e8-{dataset}"; root.mkdir(parents=True, exist_ok=True)
-    metrics, predictions, weights, configs = [], [], [], []
+    metrics, predictions, final_predictions, weights, configs = [], [], [], [], []
     for fold_index, splits in enumerate(folds):
         members = {"selection": {"full": [], "a7": []}, "test": {"full": [], "a7": []}}
         for seed in SEEDS:
@@ -97,21 +98,24 @@ def run_dataset(dataset, device):
                 for action in members[split]: members[split][action].append(output[split][action])
         for split in members:
             for action in members[split]: members[split][action] = np.asarray(members[split][action])
-        sel_full = members["selection"]["full"].mean(0); test_full = members["test"]["full"].mean(0)
-        sel_a7 = members["selection"]["a7"].mean(0); test_a7 = members["test"]["a7"].mean(0)
-        # Joint action set implements A8: each task member contributes its full and A7 action.
+        sel_full = members["selection"]["full"].mean(0)
+        sel_a7 = members["selection"]["a7"].mean(0)
+        canonical = fit_final_system(
+            members["selection"]["full"], members["selection"]["a7"],
+            splits["selection"]["y"], members["test"]["full"], members["test"]["a7"],
+            member_ids=SEEDS, simplex_l2=1e-3)
+        test_full = canonical.full_ensemble
+        test_a7 = canonical.a7_ensemble
+        test_convex = canonical.convex_probability
+        test_safe = canonical.final_probability
+        weight = canonical.action_weights
+        rho = canonical.fallback_rho
+        # Reconstruct selection probabilities only for selection diagnostics.
         sel_actions = np.empty((2*len(SEEDS), *sel_full.shape), dtype=np.float64)
-        test_actions = np.empty((2*len(SEEDS), *test_full.shape), dtype=np.float64)
-        names_actions = []
-        for i, seed in enumerate(SEEDS):
+        for i in range(len(SEEDS)):
             sel_actions[2*i:2*i+2] = [members["selection"]["full"][i], members["selection"]["a7"][i]]
-            test_actions[2*i:2*i+2] = [members["test"]["full"][i], members["test"]["a7"][i]]
-            names_actions.extend((f"seed_{seed}_full", f"seed_{seed}_a7"))
-        weight = fit_simplex_weights(sel_actions, splits["selection"]["y"], l2=1e-3)
-        sel_convex = mix_actions(sel_actions, weight); test_convex = mix_actions(test_actions, weight)
-        rho, grid = select_safe_shrinkage(sel_full, sel_convex, splits["selection"]["y"])
-        sel_safe = (1-rho)*sel_full + rho*sel_convex
-        test_safe = (1-rho)*test_full + rho*test_convex
+        sel_convex = np.sum(weight[:, None, None]*sel_actions, axis=0)
+        sel_safe = (1-rho)*sel_full+rho*sel_convex
         methods = {"A0_full_ensemble": (sel_full, test_full),
                    "A7_equal_ensemble": (sel_a7, test_a7),
                    "A8_joint_convex": (sel_convex, test_convex),
@@ -125,11 +129,23 @@ def run_dataset(dataset, device):
                                 np.arange(len(selection_labels)), selection_labels], 1e-12, 1)).mean()),
                             **evaluate(test_probability, labels, test_full)})
             frame = pd.DataFrame({"dataset": dataset, "fold": fold_index, "method": method,
+                                  "method_version": METHOD_VERSION,
                                   "sample_id": splits["test"]["id"],
                                   "group_or_video_id": splits["test"]["group"], "label": labels})
             for k in range(test_probability.shape[1]): frame[f"p{k}"] = test_probability[:, k]
             predictions.append(frame)
-        for action, value in zip(names_actions, weight):
+        final_frame = pd.DataFrame({
+            "dataset": dataset, "fold": fold_index, "method_version": METHOD_VERSION,
+            "sample_id": splits["test"]["id"].astype(str),
+            "group_or_video_id": splits["test"]["group"].astype(str),
+            "label": splits["test"]["y"], "fallback_rho": rho,
+        })
+        for k in range(test_safe.shape[1]):
+            final_frame[f"p{k}"] = test_safe[:, k]
+            final_frame[f"full_p{k}"] = test_full[:, k]
+            final_frame[f"a7_p{k}"] = test_a7[:, k]
+        final_predictions.append(final_frame)
+        for action, value in zip(canonical.action_names, weight):
             weights.append({"dataset": dataset, "fold": fold_index, "action": action,
                             "weight": float(value), "rho": rho})
         print(f"{dataset} fold={fold_index}: rho={rho:.1f} "
@@ -145,12 +161,18 @@ def run_dataset(dataset, device):
         rows.append(row)
     pd.DataFrame(rows).to_csv(root/"metrics.csv", index=False)
     pd.concat(predictions, ignore_index=True).to_parquet(root/"predictions.parquet", index=False)
+    final_frame = pd.concat(final_predictions, ignore_index=True)
+    final_frame.to_parquet(root/"final_predictions.parquet", index=False)
     pd.DataFrame(weights).to_csv(root/"weights.csv", index=False)
     pd.DataFrame(configs).to_csv(root/"member_configuration.csv", index=False)
+    pcols = sorted((column for column in final_frame if column.startswith("p")),
+                   key=lambda value: int(value[1:]))
+    digest = prediction_hash(final_frame.sample_id, final_frame.fold,
+                             final_frame[pcols].to_numpy(), method_version=METHOD_VERSION)
     (root/"manifest.json").write_text(json.dumps({"experiment": "E8 actual A7-to-A8 bridge",
         "dataset": dataset, "seeds": list(SEEDS), "joint_actions": "five full + five A7",
         "simplex_l2": 1e-3, "selection_role": "A7 strength inherited from E6; fit weights and rho",
-        "test_labels_role": "evaluation only"}, indent=2), encoding="utf-8")
+        "prediction_hash": digest, **method_manifest()}, indent=2), encoding="utf-8")
 
 
 def main():
