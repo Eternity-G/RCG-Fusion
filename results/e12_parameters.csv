@@ -1,0 +1,25 @@
+dataset,component,parameters,trainable_parameters
+mosi,coalition backbone,433922,433922
+mosi,posterior ensemble (5),2475210,2475210
+mosi,listwise router,484739,484739
+mosi,anchored mixer,1218,1218
+mosi,single-member RCG total,3395089,3395089
+mosi,five-member RCG total,16975445,16975445
+mosei,coalition backbone,444674,444674
+mosei,posterior ensemble (5),2528970,2528970
+mosei,listwise router,495491,495491
+mosei,anchored mixer,1218,1218
+mosei,single-member RCG total,3470353,3470353
+mosei,five-member RCG total,17351765,17351765
+cremad,coalition backbone,480006,480006
+cremad,posterior ensemble (5),2708190,2708190
+cremad,listwise router,531079,531079
+cremad,anchored mixer,2498,2498
+cremad,single-member RCG total,3721773,3721773
+cremad,five-member RCG total,18608865,18608865
+avmnist,coalition backbone,433674,433674
+avmnist,posterior ensemble (5),2480370,2480370
+avmnist,listwise router,485259,485259
+avmnist,anchored mixer,3778,3778
+avmnist,single-member RCG total,3403081,3403081
+avmnist,five-member RCG total,17015405,17015405

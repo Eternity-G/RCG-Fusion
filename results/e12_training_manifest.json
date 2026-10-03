@@ -1,0 +1,17 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4070 SUPER",
+  "dataset": "mosi",
+  "features": "precomputed frozen features",
+  "seeds": [
+    11,
+    22,
+    33,
+    44,
+    55
+  ],
+  "oof": "5 grouped folds x 5 teacher seeds",
+  "epochs": 100,
+  "early_stopping": true,
+  "feature_extraction_excluded": true,
+  "derived_five_member_cost": "one shared OOF bank + 5 x per-member stages"
+}

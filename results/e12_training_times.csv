@@ -1,0 +1,9 @@
+stage,scope,seconds,gpu_hours
+shared 5-fold x 5-seed OOF teacher bank,one-time per five-member group,21.62266140000429,0.0060062948333345
+one coalition-aware task backbone + calibration,per deployed member,1.3385419999831356,0.0003718172222175
+five-model posterior ensemble + calibration,per deployed member,11.06876250001369,0.0030746562500038
+analytic-residual listwise router,per deployed member,1.7943126000172924,0.0004984201666714
+anchored candidate mixer,per deployed member,2.4328131999936886,0.0006757814444426
+one deployed member (excluding shared OOF bank),derived total,16.634430300007807,0.0046206750833355
+one standalone member (including one shared OOF bank),derived total,38.2570917000121,0.010626969916670026
+five-member complete training (including one shared OOF bank),derived total,104.79481290004333,0.029109670250012

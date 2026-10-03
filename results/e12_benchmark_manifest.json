@@ -1,0 +1,10 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4070 SUPER",
+  "torch": "2.6.0+cu124",
+  "cuda": "12.4",
+  "warmup_iterations": 20,
+  "timing": "7 wall-clock rounds with CUDA synchronization",
+  "feature_encoders": "excluded; all methods use precomputed frozen features",
+  "probability_aggregation": "included",
+  "data_transfer": "excluded; tensors resident on GPU"
+}
