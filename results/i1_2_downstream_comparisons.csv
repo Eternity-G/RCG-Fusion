@@ -1,0 +1,13 @@
+dataset,first,second,nll_gain_difference,improved_seeds,paired_t_one_sided_p,holm_p
+mosi,in_sample_hard,oof_soft_full,0.0002188444137573198,2,0.2951695607794423,1.0
+mosi,oof_single_hard,oof_soft_full,0.0004812777042388798,4,0.0629605877077573,0.5677650923504505
+mosi,oof_multi_hard,oof_soft_full,0.00037791728973387976,5,0.04521476950840012,0.5425772341008015
+mosei,in_sample_hard,oof_soft_full,0.00028488039970398003,3,0.0509902310729644,0.5608925418026084
+mosei,oof_single_hard,oof_soft_full,0.00026455521583556,3,0.05677650923504504,0.5677650923504505
+mosei,oof_multi_hard,oof_soft_full,0.00022647976875306,3,0.08113764127227686,0.6491011301782149
+cremad,in_sample_hard,oof_soft_full,0.0,0,1.0,1.0
+cremad,oof_single_hard,oof_soft_full,0.0,0,1.0,1.0
+cremad,oof_multi_hard,oof_soft_full,0.0,0,1.0,1.0
+avmnist,in_sample_hard,oof_soft_full,0.0,0,1.0,1.0
+avmnist,oof_single_hard,oof_soft_full,0.0,0,1.0,1.0
+avmnist,oof_multi_hard,oof_soft_full,0.0,0,1.0,1.0

@@ -606,6 +606,37 @@ AV-MNIST严格复用既有分层五折OOF分配。原运行只含种子11的教�
 
 **产物路径：** 正式运行位于`runs/formal-e2-{mosi,mosei,cremad,avmnist}/`；可追踪汇总为`results/e2_{dataset}_*`；论文图片位于`figures/e2_{dataset}_supervision_ablation.png`。
 
+### I1-1统一复核：OOF监督可信性
+
+**状态：** ✅ 正式复核完成。该复核复用上述冻结的五教师、五路由种子产物，不重新选择监督版本。
+
+四个数据集的OOF联盟NLL均高于训练内NLL，差值依次为MOSI 0.0971、MOSEI 0.0524、CREMA-D 0.4086和AV-MNIST 0.0430。软oracle相对硬oracle的跨教师目标方差比例分别为0.075、0.057、0.544和0.417，即方差数值下降45.6%—94.3%。这两项结果共同支持OOF隔离和软分歧表达的必要性。
+
+固定使用完整软监督与OOF多教师硬目标比较时，候选oracle NLL在四个数据集上均有数值改善，改善量分别为0.00049、0.00450、0.00037和0.00044；但Top-$K$覆盖只在MOSEI和已接近饱和的AV-MNIST提高，在MOSI和CREMA-D下降。对32项探索性配对比较整体做Holm校正后，没有一项保持显著。因此I1-1建立了“监督可信性和目标稳定性”证据，但下游传递仍必须由I1-2决定，不能从目标方差直接推出最终性能收益。
+
+![I1-1 OOF监督可信性与候选覆盖](figures/i1_1_supervision_evidence.png)
+
+**新增产物：** `results/i1_1_supervision_audit.csv`、`results/i1_1_supervision_metrics_by_seed.csv`、`results/i1_1_supervision_comparisons.csv`、`results/i1_1_supervision_decision.csv`、`results/i1_1_supervision_report.md`和`figures/i1_1_supervision_evidence.png`。
+
+### I1-2统一复核：软监督的下游传递
+
+**状态：** ✅ 四数据集正式完成。
+
+本实验固定任务骨干、解析标签后验、路由器结构、锚定mixer、损害惩罚、软oracle蒸馏、贡献概率控制器和selection协议，只替换六种联盟监督。每个版本重新训练路由器和mixer；mixer始终使用相同的五教师OOF上下文。selection选择路由残差强度与$pi^2$收缩强度，测试标签只参与最终评价。
+
+| 数据集 | 完整软监督NLL改善 | 多教师硬监督NLL改善 | 软监督额外改善 | Accuracy变化 | 纠错率 | 负向翻转率 | 截断损害 | 后悔下降 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| MOSI | 0.00645 | 0.00608 | +0.00038 | +0.70 pp | 1.43% | 0.73% | 0.90% | 3.92% |
+| MOSEI | 0.00387 | 0.00365 | +0.00023 | +0.27 pp | 0.76% | 0.49% | 0.82% | 2.40% |
+| CREMA-D | 0.02599 | 0.02599 | 0 | +1.05 pp | 1.85% | 0.80% | 1.61% | 7.46% |
+| AV-MNIST | 0.00397 | 0.00397 | 0 | +0.11 pp | 0.17% | 0.06% | 0.31% | 17.75% |
+
+MOSI的完整软监督相对多教师硬监督在5/5个种子提高NLL收益，MOSEI在3/5个种子提高；CREMA-D和AV-MNIST的selection将不同监督路由回退到相同候选动作，因此下游结果严格一致。两项正增益都较小，12项预注册配对比较经Holm校正后均未达到显著性。该结果满足“至少两个数据集改善、其他数据集无负迁移”的工程门槛，同时说明创新一的决定性证据来自OOF隔离与教师分歧建模；软目标向最终性能的边际传递存在，但不是系统主要增益来源。
+
+![I1-2 软监督向下游决策的传递](figures/i1_2_downstream_transfer.png)
+
+**新增产物：** `runs/formal-i1-2-{dataset}/`、`results/i1_2_downstream_by_seed.csv`、`results/i1_2_downstream_summary.csv`、`results/i1_2_downstream_comparisons.csv`、`results/i1_2_downstream_decision.csv`、`results/i1_2_downstream_report.md`和`figures/i1_2_downstream_transfer.png`。
+
 ---
 
 # 5. 创新二：解析贡献锚定列表式路由
@@ -1573,8 +1604,8 @@ $$
 | 编号 | 实验 | 状态 | 规范要求 |
 |---|---|---|---|
 | P0 | 统一最终系统定义、版本和预测哈希 | ✅ 完成 | `rcg-fusion-a8-v1`；四数据集规范预测及SHA-256已登记 |
-| I1-1 | OOF监督可信性 | 🔴 待运行 | 六种监督版本、四数据集、教师与路由重复 |
-| I1-2 | 软监督的下游传递 | 🔴 待运行 | 固定后续结构，仅替换监督目标 |
+| I1-1 | OOF监督可信性 | ✅ 完成 | 六版本、四数据集、五教师与五路由种子统一复核；下游传递待I1-2 |
+| I1-2 | 软监督的下游传递 | ✅ 完成 | MOSI/MOSEI小幅正传递，CREMA-D/AV-MNIST安全持平；Holm后未显著 |
 | I2-1 | 解析贡献识别主实验 | 🔴 待统一复验 | 外部原生分数与内部估计器分轨比较 |
 | I2-2 | 列表式残差路由 | 🔴 待统一复验 | 排序、候选覆盖与mixer收益联动 |
 | I2-3 | 上下文依赖机制 | 🔴 待运行 | 固定目标模态，只改变其他模态上下文 |
