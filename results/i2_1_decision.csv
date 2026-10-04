@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+AUROC gain > 0.05,4,3,True
+5/5 seeds over direct regression,4,3,True
+Top-20 precision above prevalence after Holm,4,3,True
+positive decile safe-rate ordering,4,4,True

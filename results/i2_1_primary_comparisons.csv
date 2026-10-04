@@ -1,0 +1,9 @@
+dataset,second,first,metric,difference,improved_seeds,n_seeds,paired_t_one_sided_p,holm_p
+mosi,learned_posterior_analytic,direct_risk_regression,auroc,0.10585611241016309,5,5,3.1551412421346308e-06,1.8930847452807785e-05
+mosi,top20_precision,event_prevalence,precision,0.33526730721852677,5,5,3.1908173261120442e-06,1.8930847452807785e-05
+mosei,learned_posterior_analytic,direct_risk_regression,auroc,0.22974658289159783,5,5,7.258029302632826e-05,0.00021774087907898478
+mosei,top20_precision,event_prevalence,precision,0.3997170994709147,5,5,4.3572471349600104e-07,3.0500729944720073e-06
+cremad,learned_posterior_analytic,direct_risk_regression,auroc,0.16731185366933132,5,5,4.040630325750417e-06,1.8930847452807785e-05
+cremad,top20_precision,event_prevalence,precision,0.2926201262000347,5,5,1.43079431053943e-07,1.144635448431544e-06
+avmnist,learned_posterior_analytic,direct_risk_regression,auroc,0.288994159250256,5,5,0.0010746161662758772,0.001929857601400462
+avmnist,top20_precision,event_prevalence,precision,0.05597222222222222,5,5,0.000964928800700231,0.001929857601400462
