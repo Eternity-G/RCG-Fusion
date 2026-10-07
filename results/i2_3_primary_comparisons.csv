@@ -1,0 +1,13 @@
+dataset,method,reference,metric,difference,improved_seeds,p,holm_p
+mosi,analytic_expected,best_unimodal_reliability,delta_spearman,0.32450872010103926,5,0.00010065760038431656,0.0007046032026902159
+mosi,analytic_probability,best_unimodal_reliability,delta_spearman,-0.2657085728502456,0,0.9996432027781453,1.0
+mosi,anchored_listwise,best_unimodal_reliability,delta_spearman,0.2984936242464976,5,0.00019406423831886283,0.001164385429913177
+mosei,analytic_expected,best_unimodal_reliability,delta_spearman,0.45897733080455067,5,2.779236805379192e-05,0.00022233894443033535
+mosei,analytic_probability,best_unimodal_reliability,delta_spearman,-0.25232165169291254,0,0.9999968430485708,1.0
+mosei,anchored_listwise,best_unimodal_reliability,delta_spearman,0.37214148120914603,5,0.0010213402910198858,0.0051067014550994294
+cremad,analytic_expected,best_unimodal_reliability,delta_spearman,0.42506352060823255,5,6.879031252838252e-07,6.879031252838252e-06
+cremad,analytic_probability,best_unimodal_reliability,delta_spearman,-0.1586468122902707,0,0.9999965912565438,1.0
+cremad,anchored_listwise,best_unimodal_reliability,delta_spearman,0.3234280755033831,5,2.203548526906455e-06,1.9831936742158096e-05
+avmnist,analytic_expected,best_unimodal_reliability,delta_spearman,0.6653283243141338,5,4.84914330892632e-07,5.818971970711584e-06
+avmnist,analytic_probability,best_unimodal_reliability,delta_spearman,-0.3551166646774676,0,0.9997469147467074,1.0
+avmnist,anchored_listwise,best_unimodal_reliability,delta_spearman,0.6693886327809742,5,4.973537199477429e-07,5.818971970711584e-06

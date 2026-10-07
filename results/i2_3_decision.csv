@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+fixed-target reliability is invariant (max change <1e-6),4,4,True
+analytic delta-Spearman exceeds reliability by >0.10,4,3,True
+analytic paired-change AUROC >0.65,4,3,True
+strict contribution switches observed,4,3,True
