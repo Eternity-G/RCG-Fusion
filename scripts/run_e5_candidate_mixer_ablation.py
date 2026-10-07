@@ -28,6 +28,8 @@ from run_e4_anchored_routing import CONFIGS, SEEDS, make_target
 ROOT = Path(__file__).resolve().parents[1]
 LEARNED = {
     "softmax_mixer": {"anchor_full": False, "harm_weight": 0., "oracle_weight": 0.},
+    "sparsemax_mixer": {"anchor_full": False, "harm_weight": 0., "oracle_weight": 0.,
+                        "normalizer": "sparsemax"},
     "anchored_mixer": {"anchor_full": True, "harm_weight": 0., "oracle_weight": 0.},
     "anchored_harm": {"anchor_full": True, "harm_weight": 2., "oracle_weight": 0.},
     "anchored_harm_oracle": {"anchor_full": True, "harm_weight": 2., "oracle_weight": .05},
@@ -260,7 +262,8 @@ def run_dataset(dataset: str, device: str) -> None:
                     continue
                 seed_all(task_seed+fold_index*10000)
                 mixer = AnchoredCandidateMixer(
-                    classes, anchor_full=config["anchor_full"]).to(device)
+                    classes, anchor_full=config["anchor_full"],
+                    normalizer=config.get("normalizer", "softmax")).to(device)
                 history = train_mixer(
                     mixer, train_actions, train_posteriors, train_labels,
                     actions["selection"], posterior["selection"], splits["selection"]["y"],

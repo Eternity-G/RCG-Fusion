@@ -6,6 +6,23 @@ from torch import nn
 from torch.nn import functional as F
 
 
+def sparsemax(logits: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    """Euclidean projection of logits onto the probability simplex."""
+    shifted = logits - logits.max(dim=dim, keepdim=True).values
+    sorted_logits, _ = torch.sort(shifted, dim=dim, descending=True)
+    cumulative = sorted_logits.cumsum(dim)
+    size = logits.shape[dim]
+    ranks = torch.arange(1, size + 1, device=logits.device,
+                         dtype=logits.dtype)
+    shape = [1] * logits.ndim; shape[dim] = size
+    ranks = ranks.reshape(shape)
+    support = 1 + ranks * sorted_logits > cumulative
+    support_size = support.sum(dim=dim, keepdim=True).clamp_min(1)
+    threshold = ((cumulative.gather(dim, support_size - 1) - 1) /
+                 support_size.to(logits.dtype))
+    return (shifted - threshold).clamp_min(0)
+
+
 def gather_anchored_actions(probabilities: torch.Tensor, posterior: torch.Tensor,
                             candidates: torch.Tensor) -> torch.Tensor:
     """Return [full, posterior, analytic anchor, residual support ...] actions."""
@@ -26,13 +43,17 @@ class AnchoredCandidateMixer(nn.Module):
     toward action zero on the selection split.
     """
 
-    def __init__(self, classes: int, hidden: int = 64, *, anchor_full: bool = True):
+    def __init__(self, classes: int, hidden: int = 64, *, anchor_full: bool = True,
+                 normalizer: str = "softmax"):
         super().__init__()
         # p, log(p), q, log(q), |p-q|, H(p), H(q), action type/rank (5)
         width = classes * 5 + 2 + 5
         self.scorer = nn.Sequential(nn.Linear(width, hidden), nn.ReLU(),
                                     nn.Dropout(.15), nn.Linear(hidden, 1))
         self.anchor_full = bool(anchor_full)
+        if normalizer not in {"softmax", "sparsemax"}:
+            raise ValueError("normalizer must be softmax or sparsemax")
+        self.normalizer = normalizer
         if self.anchor_full:
             self.full_bias = nn.Parameter(torch.tensor(1.0))
         else:
@@ -57,7 +78,8 @@ class AnchoredCandidateMixer(nn.Module):
                              entropy_p, entropy_q, kind), dim=-1)
         logits = self.scorer(feature).squeeze(-1)
         logits[:, 0] = logits[:, 0] + self.full_bias
-        weight = logits.softmax(-1)
+        weight = (logits.softmax(-1) if self.normalizer == "softmax"
+                  else sparsemax(logits, dim=-1))
         mixture = (weight[:, :, None] * actions).sum(1)
         return {"probability": mixture, "weight": weight, "logits": logits}
 

@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+complete soft mixer exceeds best hard route in NLL,4,3,True
+complete mixer improves NLL over posterior alone,3,2,True
+coalition candidates have positive marginal NLL value,2,2,True
+correction rate exceeds negative flips,4,4,True

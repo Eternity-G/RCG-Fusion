@@ -33,6 +33,12 @@ def test_mixer_is_convex_and_objective_is_finite():
     assert not ordinary.anchor_full
     assert ordinary.full_bias.item() == 0
 
+    sparse = AnchoredCandidateMixer(3, anchor_full=False, normalizer="sparsemax")
+    sparse_output = sparse(actions, q)
+    assert torch.allclose(sparse_output["weight"].sum(1), torch.ones(8), atol=1e-6)
+    assert (sparse_output["weight"] >= 0).all()
+    assert torch.allclose(sparse_output["probability"].sum(1), torch.ones(8), atol=1e-6)
+
 
 def test_adaptive_policy_is_bounded_and_label_free():
     full = torch.tensor([[.8, .2], [.4, .6]]).numpy()

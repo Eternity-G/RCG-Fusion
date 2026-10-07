@@ -15,14 +15,16 @@ SOURCES = {name: ROOT/f"runs/formal-e5-{slug}/metrics_by_seed.csv" for name, slu
     ("MOSI", "mosi"), ("MOSEI", "mosei"), ("CREMA-D", "cremad"),
     ("AV-MNIST", "avmnist"))}
 METHODS = ["posterior_only", "analytic_hard", "listwise_hard", "equal_action_average",
-           "softmax_mixer", "anchored_mixer", "anchored_harm",
+           "softmax_mixer", "sparsemax_mixer", "anchored_mixer", "anchored_harm",
            "anchored_harm_oracle"]
 LABELS = {"posterior_only": "Posterior only", "analytic_hard": "Analytic hard", "listwise_hard": "Listwise hard",
           "equal_action_average": "Equal average", "softmax_mixer": "Softmax",
+          "sparsemax_mixer": "Sparsemax",
           "anchored_mixer": "Full anchor", "anchored_harm": "+ harm",
           "anchored_harm_oracle": "+ harm + oracle"}
 COLORS = {"posterior_only": "#3E8E7E", "analytic_hard": "#8C8C8C", "listwise_hard": "#B0B0B0",
           "equal_action_average": "#D6A657", "softmax_mixer": "#77A6B6",
+          "sparsemax_mixer": "#E69F00",
           "anchored_mixer": "#4C78A8", "anchored_harm": "#A98BC3",
           "anchored_harm_oracle": "#D95F5F"}
 
