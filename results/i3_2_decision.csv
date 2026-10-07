@@ -1,0 +1,6 @@
+criterion,datasets_passed,required,pass
+contribution-probability family reaches Pareto front,4,3,True
+contribution family beats simple controls at matched 2% test harm,3,3,True
+selection-gamma test harm remains within 2% budget,4,3,True
+selection-gamma correction rate exceeds negative flips,4,4,True
+selection-gamma has no >0.5pp mean accuracy loss,4,4,True
