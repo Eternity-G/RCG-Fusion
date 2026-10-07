@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+MOSI/MOSEI candidate recovery gain > 2pp with Holm p<0.05,2,2,True
+anchored routing improves downstream NLL gain,2,2,True
+saturated tasks lose no more than 0.0005 NLL gain,2,2,True
+anchoring does not reduce mean downstream gain by >0.0005,4,4,True

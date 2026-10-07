@@ -1,0 +1,11 @@
+dataset,second,first,metric,difference_second_minus_first,improved_seeds,n_seeds,paired_t_one_sided_p,family,holm_p
+mosi,listwise_pairwise_anchored,analytic_only,route_candidate_oracle_recovery,0.1375,5,5,0.020256751826657753,non_saturated_candidate_recovery,0.040513503653315505
+mosei,listwise_pairwise_anchored,analytic_only,route_candidate_oracle_recovery,0.18266373142542652,4,5,0.02183790690973783,non_saturated_candidate_recovery,0.040513503653315505
+mosi,listwise_pairwise_anchored,analytic_only,adaptive_nll_gain,2.430677413940044e-05,2,5,0.45144122405266385,downstream_nll_transfer,1.0
+mosei,listwise_pairwise_anchored,analytic_only,adaptive_nll_gain,0.00017256736755369992,3,5,0.08827182423251041,downstream_nll_transfer,0.35308729693004165
+cremad,listwise_pairwise_anchored,analytic_only,adaptive_nll_gain,0.0,0,5,1.0,downstream_nll_transfer,1.0
+avmnist,listwise_pairwise_anchored,analytic_only,adaptive_nll_gain,0.0,0,5,1.0,downstream_nll_transfer,1.0
+mosi,listwise_pairwise_anchored,listwise_pairwise_unanchored,route_action_oracle_nll,-0.0025932908058166502,2,5,0.09702609334329344,anchoring_action_oracle,0.38810437337317377
+mosei,listwise_pairwise_anchored,listwise_pairwise_unanchored,route_action_oracle_nll,0.00039311647415163353,1,5,0.8512753998859631,anchoring_action_oracle,1.0
+cremad,listwise_pairwise_anchored,listwise_pairwise_unanchored,route_action_oracle_nll,0.00024951745091965626,3,5,0.89432622188923,anchoring_action_oracle,1.0
+avmnist,listwise_pairwise_anchored,listwise_pairwise_unanchored,route_action_oracle_nll,0.0,0,5,1.0,anchoring_action_oracle,1.0
