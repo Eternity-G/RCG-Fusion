@@ -1334,6 +1334,43 @@ CREMA-D的五个演员外测试折按测试样本数加权聚合。配对bootstr
 - `results/e9_protocol_comparison.csv`
 - `figures/e9_augmented_backbone_stress.png`
 
+### S2规范复验：P0 v2与计算匹配强基线
+
+**状态：** ✅ 完成。以下结果取代E9中旧A8链条的规范结论；E9保留为方法演进记录。
+
+S2重新运行了冻结的`rcg-fusion-a8-v2`。A8只对五个A7成员拟合正则化非负单纯形权重，再向完整联盟集成回退；不再使用旧版“完整联盟成员与A7成员交错加权”。外部比较包括TMC、QMF、PDF与I²MoE的五成员计算匹配集成。两套协议均共享完全相同的测试扰动：clean-only协议直接测试未见退化；共享增强协议让每个外部方法和RCG任务骨干都使用相同的50%动态高斯噪声/遮蔽增强重新训练。
+
+| 协议 | 数据集 | A7平均退化NLL | 最佳外部基线 | 最佳外部NLL | A7的NLL改善 | 配对簇95% CI | Holm后结论 |
+|---|---|---:|---|---:|---:|---:|---|
+| clean-only | MOSI | 0.4665 | PDF | 0.4773 | 0.0108 | [0.0001, 0.0322] | 显著优于PDF；同时显著优于其余三者 |
+| clean-only | MOSEI | 0.3751 | I²MoE | 0.3801 | 0.0050 | [-0.0046, 0.0076] | 与I²MoE持平；显著优于TMC/QMF/PDF |
+| clean-only | CREMA-D | 1.0481 | I²MoE | 1.0689 | 0.0208 | [0.0005, 0.0406] | 显著优于四个强基线 |
+| clean-only | AV-MNIST | 0.1097 | TMC | 0.1303 | 0.0206 | [0.0120, 0.0296] | 显著优于四个强基线 |
+| 共享增强 | MOSI | 0.4614 | TMC | 0.4800 | 0.0185 | [0.0026, 0.0354] | 显著优于四个强基线 |
+| 共享增强 | MOSEI | 0.3719 | I²MoE | 0.3725 | 0.0006 | [-0.0079, 0.0056] | 与I²MoE持平；显著优于其余三者 |
+| 共享增强 | CREMA-D | 1.0229 | TMC | 1.0539 | 0.0310 | [0.0122, 0.0502] | 显著优于四个强基线 |
+| 共享增强 | AV-MNIST | 0.0439 | I²MoE | 0.0620 | 0.0180 | [0.0140, 0.0221] | 显著优于四个强基线 |
+
+配对bootstrap先在每个视频、演员或样本内平均全部扰动版本，再进行10,000次簇重采样；同一数据集和协议内对四个外部基线的比较使用Holm校正。A7在两套协议、四个数据集上均取得最低或与最低统计持平的平均退化NLL。共享增强后，A7仍在MOSI、CREMA-D和AV-MNIST相对最强外部基线获得显著NLL改善，达到预注册的“至少两个数据集仍有增量”要求；MOSEI与I²MoE持平。
+
+![S2 clean-only强基线鲁棒性](figures/s2_clean_only_robustness.png)
+
+![S2共享增强强基线鲁棒性](figures/s2_shared_augmentation_robustness.png)
+
+**A7与A8的职责边界。** clean-only协议中，A8在MOSI平均退化NLL最优，但在CREMA-D与AV-MNIST明显劣于A7；共享增强后A8在MOSI、MOSEI与AV-MNIST略优于A7，在CREMA-D仍较差。这说明样本级A7是跨退化主组件，模型级A8是同分布selection性能聚合层。遇到未通过selection分布匹配检查的强偏移时，规范系统应报告A7并禁用干净selection拟合的模型级权重，不能把A8称为任意分布偏移下的安全保证。
+
+**产物路径：**
+
+- `runs/formal-e9-clean-{dataset}/predictions.parquet`
+- `runs/formal-e9-augmented-{dataset}/predictions.parquet`
+- `runs/formal-s2-strong-clean/{dataset}/predictions.parquet`
+- `runs/formal-s2-strong-augmented/{dataset}/predictions.parquet`
+- `results/s2_condition_metrics.csv`
+- `results/s2_robustness_summary.csv`
+- `results/s2_paired_bootstrap.csv`
+- `figures/s2_clean_only_robustness.png`
+- `figures/s2_shared_augmentation_robustness.png`
+
 ## E10：模态缺失与任意可用联盟
 
 **状态：** ✅ 已完成。四个数据集的全部非空可用联盟均已评估。
@@ -1718,7 +1755,7 @@ label
 | CREMA-D演员簇bootstrap | ✅ 已完成 | 主任务差异CI跨零；NLL在4个启用聚合的折中均下降 |
 | AV-MNIST分层bootstrap | ✅ 已完成 | Accuracy、Macro-F1、NLL、Brier和ECE均获得分层bootstrap支持 |
 | 完整逐层消融 | 🟡 待S5规范汇总 | A0—A7机制链已完成；旧A8为v1，需用P0 v2统一决策链 |
-| 最新系统连续质量退化 | ✅ 已完成 | clean-only与共享增强骨干两协议完成；共享增强后A7只在CREMA-D保留稳定增益 |
+| 最新系统连续质量退化 | ✅ S2规范复验完成 | 两协议均含四个五成员强基线；A7共享增强后在MOSI、CREMA-D、AV-MNIST显著优于最强外部基线 |
 | 最新系统模态缺失 | ✅ 已完成 | 全联盟评估与缺失安全RCG完成；清零伪象被排除 |
 | Base + RCG骨干迁移 | 🟡 历史适配完成 | MOSI旧适配结果保留；S4需用P0规范链补MOSI与CREMA-D |
 | 完整效率分析 | ✅ 已完成 | 四数据集参数；MOSI训练成本；二/三模态延迟与显存 |
@@ -1779,10 +1816,10 @@ $$
 | I3-2 | 匹配损害预算的收益—风险 | ✅ 完成 | 四预算、同动作控制与TMC/QMF/PDF原生分数；3/4数据集匹配2%损害优势 |
 | I3-3 | 模型级稳定聚合与回退 | ✅ 完成 | 正则化A7成员凸聚合在3/4数据集优于A7等权；四数据集相对完整联盟NLL数值改善 |
 | S1 | 四数据集计算匹配干净主结果 | 🟡 核心重复部分完成 | 全部统一基线与簇bootstrap完成；MOSI/MOSEI P0 v2五组独立复验完成，CREMA-D/AV-MNIST仍为单系统点 |
-| S2 | 连续退化鲁棒性 | 🔴 待规范复验 | clean-only与共享增强，比较强外部基线 |
+| S2 | 连续退化鲁棒性 | ✅ 完成 | P0 v2与TMC/QMF/PDF/I²MoE两协议统一比较；A7为跨退化主组件，A8仅在分布匹配时启用 |
 | S3 | 模态缺失与任意联盟 | 🔴 待规范复验 | availability-safe RCG与外部缺失适配 |
 | S4 | 骨干可迁移性 | 🔴 待规范复验 | 五骨干，MOSI与CREMA-D，Base/Base+RCG |
 | S5 | A0—A8三链消融 | 🔴 待规范汇总 | 监督、路由、决策三条证据链 |
 | S6 | 效率与收益归一化 | 🔴 待规范复验 | 单成员、蒸馏和五成员版本及外部基线 |
 
-下一项固定为S2连续退化鲁棒性的P0 v2规范复验。历史E1/E7/E11结果不复制到新的正式主表。
+下一项固定为S3模态缺失与任意联盟的P0 v2规范复验。历史E1/E7/E11结果不复制到新的正式主表。

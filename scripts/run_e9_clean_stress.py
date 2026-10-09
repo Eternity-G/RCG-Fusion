@@ -131,9 +131,13 @@ def run_dataset(dataset, device):
             method_names=["full_ensemble","posterior_ensemble","raw_mixer_ensemble",
                           "confidence_shrink_ensemble","entropy_shrink_ensemble","A7_equal_ensemble"]
             ensemble={method:np.mean([x[method] for x in outputs],axis=0) for method in method_names}
-            joint=[]
-            for output in outputs: joint.extend((output["full_ensemble"],output["A7_equal_ensemble"]))
-            convex=np.tensordot(e8_weights,np.asarray(joint),axes=(0,0))
+            # P0 v2 fits the simplex only over the five contribution-controlled
+            # A7 member actions.  The former v1 chain interleaved full and A7
+            # actions and must not be used in normative stress evaluation.
+            a7_members=np.asarray([output["A7_equal_ensemble"] for output in outputs])
+            if len(e8_weights) != len(a7_members):
+                raise ValueError("P0 v2 A8 weights must align with A7 members")
+            convex=np.tensordot(e8_weights,a7_members,axes=(0,0))
             ensemble["A8_safe_fallback"]=(1-rho)*ensemble["full_ensemble"]+rho*convex
             kind,modality,level,corruption_seed=metadata(condition);labels=changed["y"]
             alpha=float(np.mean([x["a7_alpha"].mean() for x in outputs]))
@@ -167,7 +171,8 @@ def run_dataset(dataset, device):
     pd.DataFrame(metric_rows).to_csv(root/"metrics_by_condition_fold.csv",index=False)
     pd.concat(prediction_frames,ignore_index=True).to_parquet(root/"predictions.parquet",index=False)
     (root/"manifest.json").write_text(json.dumps({"experiment":"E9 clean-trained continuous degradation",
-        "dataset":dataset,"noise_levels":[.25,.5,1.,2.],"mask_levels":[.25,.5,.75],
+        "dataset":dataset,"method_version":"rcg-fusion-a8-v2",
+        "noise_levels":[.25,.5,1.,2.],"mask_levels":[.25,.5,.75],
         "corruption_seeds":[101,202,303],"shared_corruption_across_methods_and_members":True,
         "training_protocol":"clean-only","test_labels_role":"evaluation only"},indent=2),encoding="utf-8")
 

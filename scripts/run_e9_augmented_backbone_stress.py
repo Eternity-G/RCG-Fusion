@@ -22,7 +22,8 @@ from rcg.posterior_analytic_pipeline import _load_backbone
 from rcg.rcg_fusion import CoalitionAwareBackbone, nonempty_coalitions
 from rcg.rcg_fusion_pipeline import (calibrate_temperatures, fit_backbone,
                                      load_dataset, stress_conditions)
-from rcg.stable_ensemble import fit_simplex_weights, mix_actions, select_safe_shrinkage
+from rcg.final_system import fit_final_system
+from rcg.stable_ensemble import mix_actions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,15 +88,10 @@ def select_member_policies(context: dict, split: dict, masks, top_k: int, device
 
 
 def fit_a8(selection_outputs: list[dict], labels: np.ndarray):
-    actions = []
-    for output in selection_outputs:
-        actions.extend((output["full_ensemble"], output["A7_equal_ensemble"]))
-    actions = np.asarray(actions)
-    weights = fit_simplex_weights(actions, labels, l2=1e-3)
-    full = np.mean([output["full_ensemble"] for output in selection_outputs], axis=0)
-    convex = mix_actions(actions, weights)
-    rho, grid = select_safe_shrinkage(full, convex, labels)
-    return weights, float(rho), grid
+    full = np.asarray([output["full_ensemble"] for output in selection_outputs])
+    a7 = np.asarray([output["A7_equal_ensemble"] for output in selection_outputs])
+    fitted = fit_final_system(full, a7, labels, full, a7, member_ids=SEEDS)
+    return fitted.action_weights, fitted.fallback_rho, fitted.fallback_grid, fitted.aggregation_l2
 
 
 def run_dataset(dataset: str, device: str) -> None:
@@ -112,12 +108,13 @@ def run_dataset(dataset: str, device: str) -> None:
             contexts.append(context)
         selection_outputs = [select_member_policies(
             context, splits["selection"], masks, top_k, device) for context in contexts]
-        weights, rho, grid = fit_a8(selection_outputs, splits["selection"]["y"])
+        weights, rho, grid, aggregation_l2 = fit_a8(selection_outputs, splits["selection"]["y"])
         for context, output in zip(contexts, selection_outputs):
             configuration.append({
                 "dataset": dataset, "fold": fold, "train_seed": context["seed"],
                 **{f"{name}_strength": value for name, value in context["strengths"].items()},
                 "selection_mean_a7_alpha": float(output["a7_alpha"].mean()), "rho": rho,
+                "aggregation_l2": aggregation_l2,
             })
         for condition, changed, _ in stress_conditions(splits["test"], names):
             if condition.startswith("missing:"):
@@ -127,10 +124,8 @@ def run_dataset(dataset: str, device: str) -> None:
                             "confidence_shrink_ensemble", "entropy_shrink_ensemble", "A7_equal_ensemble"]
             ensemble = {method: np.mean([value[method] for value in outputs], axis=0)
                         for method in method_names}
-            joint = []
-            for output in outputs:
-                joint.extend((output["full_ensemble"], output["A7_equal_ensemble"]))
-            convex = mix_actions(np.asarray(joint), weights)
+            a7_members = np.asarray([output["A7_equal_ensemble"] for output in outputs])
+            convex = mix_actions(a7_members, weights)
             ensemble["A8_safe_fallback"] = (1-rho)*ensemble["full_ensemble"] + rho*convex
             kind, modality, level, corruption_seed = metadata(condition); labels = changed["y"]
             alpha = float(np.mean([value["a7_alpha"].mean() for value in outputs]))
@@ -172,7 +167,8 @@ def run_dataset(dataset: str, device: str) -> None:
     pd.DataFrame(configuration).to_csv(root / "member_configuration.csv", index=False)
     (root / "manifest.json").write_text(json.dumps({
         "experiment": "E9 shared dynamic-degradation backbone augmentation control",
-        "dataset": dataset, "seeds": list(SEEDS), "augmentation_probability": .5,
+        "dataset": dataset, "method_version": "rcg-fusion-a8-v2",
+        "seeds": list(SEEDS), "augmentation_probability": .5,
         "noise_levels": [.25, .5, 1., 2.], "mask_levels": [.25, .5, .75],
         "corruption_seeds": [101, 202, 303], "shared_corruption_across_methods_and_members": True,
         "retrained": "coalition task backbone from scratch",
