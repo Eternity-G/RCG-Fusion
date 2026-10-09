@@ -162,18 +162,18 @@ def fit_adapter(splits, bundles, masks, dims, classes, seed, device, epochs, bat
 def run(args):
     device = "cuda" if args.device == "auto" and torch.cuda.is_available() else args.device
     device = "cpu" if device == "auto" else device
-    folds, names = load_dataset("mosi", args.data)
-    splits = folds[0]
+    folds, names = load_dataset(args.dataset, args.data)
     masks = nonempty_coalitions(len(names))
     source = Path(args.source)
     root = Path(args.output)
     root.mkdir(parents=True, exist_ok=True)
-    metrics, prediction_rows = [], []
-    for method in args.methods:
+    metrics, prediction_rows, selection_rows = [], [], []
+    for fold, splits in enumerate(folds):
+      for method in args.methods:
         for seed in args.seeds:
-            out = root/method/f"seed_{seed}"
+            out = root/f"fold_{fold}"/method/f"seed_{seed}"
             out.mkdir(parents=True, exist_ok=True)
-            model, config = load_strong(source/"mosi"/"fold_0"/method/f"seed_{seed}", device)
+            model, config = load_strong(source/args.dataset/f"fold_{fold}"/method/f"seed_{seed}", device)
             bundles = {name: predict_strong(model, splits[name], masks,
                                              config["temperatures"], names, device)
                        for name in ("train", "selection", "test")}
@@ -211,7 +211,8 @@ def run(args):
                     probability, alpha = shrink(full, test_mix[variant], gate, strength)
                 values, prediction = probability_metrics(probability, labels)
                 loss = observed_loss(probability, labels)
-                row = {"dataset": "mosi", "backbone": method, "train_seed": seed,
+                row = {"dataset": args.dataset, "fold": fold,
+                       "backbone": method, "train_seed": seed,
                        "variant": variant, "n_test": len(labels), "strength": strength,
                        "mean_alpha": float(alpha.mean()), **values,
                        "nll_gain_vs_base": float(full_loss.mean()-loss.mean()),
@@ -223,11 +224,25 @@ def run(args):
                 frame = pd.DataFrame({
                     "sample_id": splits["test"]["id"],
                     "group_or_video_id": splits["test"]["group"], "label": labels,
+                    "dataset": args.dataset, "fold": fold,
                     "backbone": method, "train_seed": seed, "variant": variant,
                     "loss": loss, "correct": prediction == labels, "alpha": alpha})
                 for k in range(probability.shape[1]):
                     frame[f"p{k}"] = probability[:, k]
                 prediction_rows.append(frame)
+                if variant == "base":
+                    selection_probability = actions["selection"][:, 0]
+                else:
+                    selection_probability = selected[variant][0]
+                selection_frame = pd.DataFrame({
+                    "sample_id": splits["selection"]["id"],
+                    "group_or_video_id": splits["selection"]["group"],
+                    "label": splits["selection"]["y"], "dataset": args.dataset,
+                    "fold": fold, "backbone": method, "train_seed": seed,
+                    "variant": variant})
+                for k in range(selection_probability.shape[1]):
+                    selection_frame[f"p{k}"] = selection_probability[:, k]
+                selection_rows.append(selection_frame)
             (out/"training.json").write_text(json.dumps(training, indent=2), encoding="utf-8")
             print(f"{method} seed={seed}: complete NLL gain="
                   f"{metrics[-1]['nll_gain_vs_base']:+.5f}, "
@@ -237,6 +252,8 @@ def run(args):
     table.to_csv(root/"metrics_by_seed.csv", index=False)
     predictions = pd.concat(prediction_rows, ignore_index=True)
     predictions.to_parquet(root/"predictions.parquet", index=False)
+    pd.concat(selection_rows, ignore_index=True).to_parquet(
+        root/"selection_predictions.parquet", index=False)
     summary = table.groupby(["backbone", "variant"]).agg(
         accuracy=("accuracy", "mean"), accuracy_std=("accuracy", "std"),
         macro_f1=("macro_f1", "mean"), nll=("nll", "mean"), nll_std=("nll", "std"),
@@ -247,7 +264,7 @@ def run(args):
         correction_rate=("correction_rate", "mean"), clipped_harm=("clipped_harm", "mean"),
         mean_alpha=("mean_alpha", "mean")).reset_index()
     summary.to_csv(root/"metrics_summary.csv", index=False)
-    manifest = {"experiment": "E11 backbone transfer", "dataset": "mosi",
+    manifest = {"experiment": "S4 backbone transfer", "dataset": args.dataset,
                 "methods": list(args.methods), "seeds": list(args.seeds),
                 "adapter": "shared posterior + analytic anchored listwise router + anchored mixer",
                 "analytic_stage": "posterior action with analytic pi^2 shrinkage",
@@ -264,6 +281,7 @@ def main():
     parser.add_argument("--data", default=str(ROOT/"data"))
     parser.add_argument("--source", default=str(ROOT/"runs"/"strong-observation"))
     parser.add_argument("--output", default=str(ROOT/"runs"/"formal-e11-backbone-transfer"))
+    parser.add_argument("--dataset", choices=("mosi", "cremad"), default="mosi")
     parser.add_argument("--methods", nargs="+", choices=METHODS, default=list(METHODS))
     parser.add_argument("--seeds", nargs="+", type=int, default=list(SEEDS))
     parser.add_argument("--epochs", type=int, default=60)
