@@ -1432,6 +1432,30 @@ AV-MNIST中完整图像+音频联盟在95.72%的样本上就是全部合法联�
 - `results/e10_missing_bootstrap.csv`
 - `figures/e10_missing_coalitions.png`
 
+### S3规范复验：外部缺失适配与P0可用性约束
+
+**状态：** ✅ 完成。TMC、QMF、PDF和I²MoE均使用其coalition-valid训练检查点，对每个合法可用联盟直接前向，并按五成员概率平均；未使用“完整输入模型测试时清零”作为强基线。availability-safe RCG沿用E10的结构约束：无效联盟不能进入后验、路由或mixer；只剩单个合法联盟时精确回退。
+
+| 数据集 | Availability-safe RCG Accuracy / NLL | Coalition dropout | 最佳外部方法 | 最佳外部 Accuracy / NLL | 结论 |
+|---|---:|---:|---|---:|---|
+| MOSI | **0.6651 / 0.5716** | 0.6639 / 0.5727 | PDF | 0.6606 / 0.5805 | RCG取得最高Accuracy与最低NLL |
+| MOSEI | 0.7427 / 0.4969 | 0.7423 / 0.4968 | PDF | **0.7477 / 0.4950** | RCG与coalition dropout持平，PDF略优 |
+| CREMA-D | 0.5066 / 1.2720 | 0.5066 / 1.2720 | PDF | **0.5165 / 1.2542** | 单模态时RCG精确回退；PDF更优 |
+| AV-MNIST | 0.9019 / 0.3064 | 0.9019 / 0.3064 | TMC | **0.9247 / 0.2458** | 单模态时RCG精确回退；TMC更优 |
+
+![S3模态缺失下的联盟有效外部比较](figures/s3_missing_modalities.png)
+
+统计按原视频、演员或样本簇进行10,000次配对bootstrap，并在每个数据集内对五项比较作Holm校正。MOSI中RCG相对所有外部方法的NLL均为正方向，但除QMF外在五重校正后未达到0.05；MOSEI中与PDF和I²MoE持平；CREMA-D中显著优于I²MoE但显著弱于PDF；AV-MNIST中显著优于QMF、显著弱于TMC/PDF/I²MoE。
+
+S3验证了两个系统性质。第一，联盟有效训练相对未经训练清零在MOSEI、CREMA-D和AV-MNIST显著改善，删除协议有效。第二，RCG在只有一个合法联盟时与coalition dropout逐样本完全一致，没有为展示动态性而改写唯一预测；在三模态仍有选择空间的MOSI中进一步降低NLL。外部比较同时表明，任意联盟合法推理不自动等于所有缺失任务上的最高准确率，尤其AV-MNIST的单模态专家由TMC处理得更好。
+
+**产物路径：**
+
+- `runs/formal-s3-strong-missing/{dataset}/predictions.parquet`
+- `results/s3_missing_summary.csv`
+- `results/s3_missing_bootstrap.csv`
+- `figures/s3_missing_modalities.png`
+
 ---
 
 # 9. 骨干迁移与强基线
@@ -1817,9 +1841,9 @@ $$
 | I3-3 | 模型级稳定聚合与回退 | ✅ 完成 | 正则化A7成员凸聚合在3/4数据集优于A7等权；四数据集相对完整联盟NLL数值改善 |
 | S1 | 四数据集计算匹配干净主结果 | 🟡 核心重复部分完成 | 全部统一基线与簇bootstrap完成；MOSI/MOSEI P0 v2五组独立复验完成，CREMA-D/AV-MNIST仍为单系统点 |
 | S2 | 连续退化鲁棒性 | ✅ 完成 | P0 v2与TMC/QMF/PDF/I²MoE两协议统一比较；A7为跨退化主组件，A8仅在分布匹配时启用 |
-| S3 | 模态缺失与任意联盟 | 🔴 待规范复验 | availability-safe RCG与外部缺失适配 |
+| S3 | 模态缺失与任意联盟 | ✅ 完成 | 全部合法联盟、精确单联盟回退及TMC/QMF/PDF/I²MoE缺失适配完成 |
 | S4 | 骨干可迁移性 | 🔴 待规范复验 | 五骨干，MOSI与CREMA-D，Base/Base+RCG |
 | S5 | A0—A8三链消融 | 🔴 待规范汇总 | 监督、路由、决策三条证据链 |
 | S6 | 效率与收益归一化 | 🔴 待规范复验 | 单成员、蒸馏和五成员版本及外部基线 |
 
-下一项固定为S3模态缺失与任意联盟的P0 v2规范复验。历史E1/E7/E11结果不复制到新的正式主表。
+下一项固定为S4骨干可迁移性的P0规范链复验。历史E1/E7/E11结果不复制到新的正式主表。
