@@ -1,0 +1,33 @@
+dataset,chain,stage,primary_metric,value,gain
+MOSI,supervision,A1 OOF hard,candidate_recovery,0.6582317073170733,0.0
+MOSI,supervision,A2 OOF soft,candidate_recovery,0.5762195121951219,-0.08201219512195135
+MOSI,supervision,soft variance ratio,soft/hard target variance,0.0750328082404539,0.9249671917595461
+MOSI,routing,A3 analytic,candidate_recovery,0.3978658536585365,0.0
+MOSI,routing,A5 anchored listwise,candidate_recovery,0.5582317073170732,0.16036585365853667
+MOSI,decision,A6 mixer,single-member NLL gain,0.4591948509216307,0.0065807104110717
+MOSI,decision,A7 risk control,single-member NLL gain,0.459522396326065,0.0062531650066375
+MOSI,decision,A8 P0 v2,ensemble NLL gain,0.4417870796389897,0.0086589131911141
+MOSEI,supervision,A1 OOF hard,candidate_recovery,0.4886075949367088,0.0
+MOSEI,supervision,A2 OOF soft,candidate_recovery,0.5998899284534949,0.11128233351678607
+MOSEI,supervision,soft variance ratio,soft/hard target variance,0.0571569011941921,0.9428430988058079
+MOSEI,routing,A3 analytic,candidate_recovery,0.4886075949367088,0.0
+MOSEI,routing,A5 anchored listwise,candidate_recovery,0.6712162905888828,0.18260869565217397
+MOSEI,decision,A6 mixer,single-member NLL gain,0.3585556209087371,0.0090530395507811
+MOSEI,decision,A7 risk control,single-member NLL gain,0.3638941705226898,0.0037144899368285
+MOSEI,decision,A8 P0 v2,ensemble NLL gain,0.3554858453925293,7.925311839812599e-05
+CREMA-D,supervision,A1 OOF hard,candidate_recovery,0.8107766729373823,0.0
+CREMA-D,supervision,A2 OOF soft,candidate_recovery,0.8092717011556033,-0.0015049717817789965
+CREMA-D,supervision,soft variance ratio,soft/hard target variance,0.5442189593027316,0.45578104069726844
+CREMA-D,routing,A3 analytic,candidate_recovery,0.8022037086804621,0.0
+CREMA-D,routing,A5 anchored listwise,candidate_recovery,0.8095404461166353,0.007336737436173246
+CREMA-D,decision,A6 mixer,single-member NLL gain,0.9845691620502636,0.0639680605042335
+CREMA-D,decision,A7 risk control,single-member NLL gain,1.022535489855579,0.0260017326989182
+CREMA-D,decision,A8 P0 v2,ensemble NLL gain,0.9629784305893728,0.0108608123498313
+AV-MNIST,supervision,A1 OOF hard,candidate_recovery,0.9935555555555554,0.0
+AV-MNIST,supervision,A2 OOF soft,candidate_recovery,0.9936666666666666,0.00011111111111117289
+AV-MNIST,supervision,soft variance ratio,soft/hard target variance,0.4170611960867607,0.5829388039132393
+AV-MNIST,routing,A3 analytic,candidate_recovery,0.9937222222222224,0.0
+AV-MNIST,routing,A5 anchored listwise,candidate_recovery,0.9935555555555554,-0.00016666666666698138
+AV-MNIST,decision,A6 mixer,single-member NLL gain,0.0403180100023745,0.0008848123252391
+AV-MNIST,decision,A7 risk control,single-member NLL gain,0.0372155603021383,0.0039872620254754
+AV-MNIST,decision,A8 P0 v2,ensemble NLL gain,0.0213380809496156,0.0064602537516065

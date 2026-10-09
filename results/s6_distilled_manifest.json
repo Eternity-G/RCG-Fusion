@@ -1,0 +1,13 @@
+{
+  "teacher": "rcg-fusion-a8-v2",
+  "student": "single coalition backbone full-coalition distillation",
+  "student_seeds": [
+    11,
+    22,
+    33,
+    44,
+    55
+  ],
+  "selection_rule": "minimum selection NLL",
+  "test_labels_role": "evaluation only"
+}

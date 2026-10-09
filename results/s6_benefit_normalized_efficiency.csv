@@ -1,0 +1,2 @@
+dataset,deployment,batch_size,full_latency_ms,rcg_latency_ms,incremental_latency_ms,nll_improvement,incremental_ms_per_0.01_nll,latency_multiplier,peak_vram_mb
+mosi,five-member P0 v2,64,4.735665000043809,145.60286999975298,140.86720499970917,0.0086589131911141,162.6846255304524,30.746024053307405,76.55517578125
