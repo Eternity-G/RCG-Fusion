@@ -141,11 +141,13 @@ def evaluate_probability(probability, full, labels, coalition_losses, actions,
     return result, loss, prediction
 
 
-def run_dataset(dataset: str, device: str) -> None:
+def run_dataset(dataset: str, device: str, *, output_root: Path | None = None) -> None:
     cfg = CONFIGS[dataset]
     folds, names = load_dataset(dataset, ROOT/"data")
     masks = nonempty_coalitions(len(names)); top_k = 3 if len(names) >= 3 else 2
-    root = ROOT/"runs"/f"formal-e5-{dataset}"; root.mkdir(parents=True, exist_ok=True)
+    root = (Path(output_root) if output_root is not None
+            else ROOT/"runs"/f"formal-e5-{dataset}")
+    root.mkdir(parents=True, exist_ok=True)
     partial = root/"metrics_by_fold_seed.partial.csv"
     saved_frames = []
     if (root/"metrics_by_fold_seed.csv").exists():

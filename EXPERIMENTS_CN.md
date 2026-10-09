@@ -467,7 +467,7 @@ AV-MNIST使用一个由五个独立成员组成的最终集成，在固定测试
 
 ### S1规范主表：P0 v2与计算匹配外部基线
 
-**状态：** 🟡 单个五成员集成点及配对bootstrap完成；独立五组集成重复待补。
+**状态：** 🟡 MOSI/MOSEI已完成P0 v2五组独立五成员复验；CREMA-D/AV-MNIST仍为单个五成员系统点。
 
 S1只使用P0冻结的`rcg-fusion-a8-v2`预测。所有外部方法均使用相同冻结表示和测试划分，并对五个训练成员的概率进行平均。基础方法包括最佳单模态、等权概率、最大概率加权、熵加权、selection拟合静态late fusion、full-only Concat、modality dropout和coalition dropout；动态方法包括统一特征适配的TMC、QMF、PDF和I²MoE。AV-MNIST此前缺少强方法检查点，本轮已按相同协议补齐五种子训练。
 
@@ -484,9 +484,20 @@ Accuracy证据更弱：RCG只在MOSI超过最强Accuracy基线；MOSEI和AV-MNIS
 
 ![S1 统一干净主结果](figures/s1_clean_main.png)
 
-**统计边界。** 当前bootstrap只刻画固定五成员系统的样本或视频/演员簇不确定性。它不等于独立重新训练方差。MOSI/MOSEI已有的历史五组结果使用旧聚合链，不能替代P0 v2的独立重复；CREMA-D和AV-MNIST也仍缺少新的独立五组系统。S1在这些重复完成前保持“部分完成”。
+**统计边界。** MOSI/MOSEI现已同时报告五组独立训练系统的方差和固定五组平均预测上的视频簇bootstrap。CREMA-D和AV-MNIST仍只有一个五成员系统点，其bootstrap只刻画演员簇或分层样本不确定性，不能替代独立重新训练方差。因此S1仍保持“部分完成”。
 
-**产物路径：** `results/s1_clean_predictions.parquet`、`results/s1_clean_metrics.csv`、`results/s1_clean_paired_bootstrap.csv`、`results/s1_primary_summary.csv`、`results/s1_decision.csv`、`results/s1_report.md`、`results/s1_manifest.json`及`figures/s1_clean_main.png`。
+为补齐这一缺口，已使用历史互不重叠的backbone、OOF教师和posterior检查点，重新训练当前列表路由器与候选mixer，并按P0 v2重新生成G2—G5。下表中的G1—G5均为现行方法，不再混用旧风险头或旧聚合器。
+
+| 数据集 | $\Delta$Accuracy均值 | Accuracy训练组95% CI | Accuracy胜场 | NLL改善均值 | NLL训练组95% CI | NLL胜场 | 簇bootstrap NLL 95% CI |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| MOSI | +0.46 pp | $[-0.36,+1.27]$ pp | 4/5 | +.00957 | $[-.00057,.01971]$ | 4/5 | $[.00453,.01413]$ |
+| MOSEI | +0.02 pp | $[-0.12,+0.16]$ pp | 2/5 | +.00042 | $[-.00004,.00087]$ | 5/5 | $[-.00109,.00188]$ |
+
+MOSI的五组平均NLL改善方向较强，固定五组后的视频簇区间不含零，但训练组$t$区间仍跨零；Accuracy训练组区间也跨零。MOSEI虽然5/5组NLL方向均为正，幅度只有约$4.2\times10^{-4}$，训练组和视频簇区间均跨零。因此P0 v2目前支持“MOSI概率质量改善、MOSEI近似持平”，不支持把很小的MOSEI正数解释成实质提升。
+
+![S1 MOSI和MOSEI的五组独立P0 v2集成](figures/s1_independent_replicates.png)
+
+**产物路径：** `results/s1_clean_predictions.parquet`、`results/s1_clean_metrics.csv`、`results/s1_clean_paired_bootstrap.csv`、`results/s1_primary_summary.csv`、`results/s1_decision.csv`、`results/s1_report.md`、`results/s1_manifest.json`、`results/s1_replicates_by_group.csv`、`results/s1_replicates_summary.csv`、`figures/s1_clean_main.png`及`figures/s1_independent_replicates.png`。
 
 ---
 
@@ -1702,8 +1713,8 @@ label
 | 解析锚定列表式路由 | ✅ 已完成 | 四数据集五种子完成；MOSI/MOSEI候选覆盖增益明确 |
 | 创新三样本级候选融合 | ✅ 已完成 | E5分组件与E6贡献概率收缩均完成 |
 | 模型级稳定凸聚合 | ✅ I3-3规范复验完成 | P0 v2使用正则化A7成员凸聚合与完整联盟回退；3/4数据集优于A7等权，独立显著性仅AV-MNIST成立 |
-| MOSI五组独立集成 | ✅ 已完成 | 5/5组Accuracy优于完整联盟集成；NLL为4/5组改善 |
-| MOSEI五组独立集成 | ✅ 已完成 | 与完整联盟集成持平，未获得统计支持的Accuracy或NLL提升 |
+| MOSI P0 v2五组独立集成 | ✅ 已完成 | Accuracy与NLL均为4/5组改善；训练组区间仍跨零 |
+| MOSEI P0 v2五组独立集成 | ✅ 已完成 | NLL为5/5组数值改善但幅度很小；Accuracy与NLL均未获统计支持 |
 | CREMA-D演员簇bootstrap | ✅ 已完成 | 主任务差异CI跨零；NLL在4个启用聚合的折中均下降 |
 | AV-MNIST分层bootstrap | ✅ 已完成 | Accuracy、Macro-F1、NLL、Brier和ECE均获得分层bootstrap支持 |
 | 完整逐层消融 | 🟡 待S5规范汇总 | A0—A7机制链已完成；旧A8为v1，需用P0 v2统一决策链 |
@@ -1767,11 +1778,11 @@ $$
 | I3-1 | 候选融合价值 | ✅ 完成 | 软融合数值上4/4优于最佳硬路由；候选边际价值在MOSI与CREMA-D为正 |
 | I3-2 | 匹配损害预算的收益—风险 | ✅ 完成 | 四预算、同动作控制与TMC/QMF/PDF原生分数；3/4数据集匹配2%损害优势 |
 | I3-3 | 模型级稳定聚合与回退 | ✅ 完成 | 正则化A7成员凸聚合在3/4数据集优于A7等权；四数据集相对完整联盟NLL数值改善 |
-| S1 | 四数据集计算匹配干净主结果 | 🟡 单集成点完成 | 全部统一基线与簇bootstrap完成；P0 v2独立五组集成重复待补 |
+| S1 | 四数据集计算匹配干净主结果 | 🟡 核心重复部分完成 | 全部统一基线与簇bootstrap完成；MOSI/MOSEI P0 v2五组独立复验完成，CREMA-D/AV-MNIST仍为单系统点 |
 | S2 | 连续退化鲁棒性 | 🔴 待规范复验 | clean-only与共享增强，比较强外部基线 |
 | S3 | 模态缺失与任意联盟 | 🔴 待规范复验 | availability-safe RCG与外部缺失适配 |
 | S4 | 骨干可迁移性 | 🔴 待规范复验 | 五骨干，MOSI与CREMA-D，Base/Base+RCG |
 | S5 | A0—A8三链消融 | 🔴 待规范汇总 | 监督、路由、决策三条证据链 |
 | S6 | 效率与收益归一化 | 🔴 待规范复验 | 单成员、蒸馏和五成员版本及外部基线 |
 
-下一项固定为补齐S1的P0 v2独立训练重复；其后进入S2。历史E1/E7/E11结果不复制到新的正式主表。
+下一项固定为S2连续退化鲁棒性的P0 v2规范复验。历史E1/E7/E11结果不复制到新的正式主表。

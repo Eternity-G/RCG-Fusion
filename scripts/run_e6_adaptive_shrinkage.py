@@ -90,11 +90,15 @@ def choose_strength(full, mixture, posterior, labels, controller):
     return best, records
 
 
-def run_dataset(dataset: str, device: str):
+def run_dataset(dataset: str, device: str, *, e5_root_override: Path | None = None,
+                output_root: Path | None = None):
     cfg = CONFIGS[dataset]; folds, names = load_dataset(dataset, ROOT/"data")
     masks = nonempty_coalitions(len(names)); top_k = 3 if len(names) >= 3 else 2
-    e5_root = ROOT/"runs"/f"formal-e5-{dataset}"
-    root = ROOT/"runs"/f"formal-e6-{dataset}"; root.mkdir(parents=True, exist_ok=True)
+    e5_root = (Path(e5_root_override) if e5_root_override is not None
+               else ROOT/"runs"/f"formal-e5-{dataset}")
+    root = (Path(output_root) if output_root is not None
+            else ROOT/"runs"/f"formal-e6-{dataset}")
+    root.mkdir(parents=True, exist_ok=True)
     deployment_rows, curve_rows = [], []
     for fold_index, splits in enumerate(folds):
         for task_seed in SEEDS:
