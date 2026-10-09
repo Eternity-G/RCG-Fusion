@@ -24,9 +24,10 @@ def test_final_system_is_convex_reproducible_and_label_free_at_test():
     np.testing.assert_allclose(first.action_weights.sum(), 1.)
     assert np.all(first.action_weights >= 0)
     assert 0 <= first.fallback_rho <= 1
+    assert first.aggregation_l2 in {1e-3, 1e-2, 1e-1, 1., 10.}
     np.testing.assert_allclose(first.final_probability.sum(1), 1.)
-    assert first.action_names[0] == "member_11_full"
-    assert first.action_names[1] == "member_11_a7"
+    assert first.action_names[0] == "member_11_a7"
+    assert first.action_names[1] == "member_22_a7"
 
 
 def test_zero_fallback_recovers_full_ensemble():

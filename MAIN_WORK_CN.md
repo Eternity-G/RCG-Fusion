@@ -22,7 +22,7 @@ flowchart LR
     F --> G[锚定候选动作集合]
     G --> H[样本级候选动作混合]
     H --> I[贡献概率自适应收缩]
-    I --> J[模型级稳定后验凸聚合]
+    I --> J[模型级正则化A7成员凸聚合]
     J --> K[完整联盟集成回退]
 ```
 
@@ -50,7 +50,7 @@ flowchart LR
 | 列表式残差路由 | listwise residual router | 在解析贡献先验上学习联盟排序残差的路由器 |
 | 锚定候选集 | anchored candidate set | 固定解析 Top-1，并由残差排序补充其他联盟的候选集合 |
 | 完整联盟回退 | full-coalition fallback | 不确定时精确返回完整联盟或完整联盟集成的机制 |
-| 稳定后验聚合 | stable posterior aggregation | 在概率单纯形上对完整联盟与后验动作进行非负凸聚合 |
+| 稳定成员聚合 | stable member aggregation | 在概率单纯形上对多个A7成员进行正则化非负凸聚合 |
 
 设全部模态构成集合
 
@@ -1317,71 +1317,79 @@ $$
 
 该上界表明，当 $\alpha_{\max}<1$ 时，样本级更新的最坏交叉熵增量受到显式限制。当允许 $\alpha_{\max}=1$ 时，有限的分布无关上界不再存在，因此不能将该命题扩展到完全替换完整联盟的情形。
 
-### 5.8 模型级稳定后验凸聚合
+### 5.8 模型级正则化A7成员凸聚合
 
-样本级融合解决单模型内部的候选动作风险，多模型部署还需要处理不同训练种子产生的预测波动。设共有 $E$ 个模型成员，第 $e$ 个成员输出完整联盟预测和标签后验：
+样本级融合解决单模型内部的候选动作风险，多模型部署还需要处理不同训练种子产生的预测波动。设共有 $E$ 个模型成员，第 $e$ 个成员分别输出完整联盟预测 $p_{\mathcal M}^{(e)}$ 和经过候选混合与贡献概率收缩后的 A7 预测 $p_{\mathrm{A7}}^{(e)}$。
 
-$$
-p_{\mathcal M}^{(e)},
-\qquad
-q_\theta^{(e)},
-\qquad e=1,\ldots,E.
-$$
-
-模型级动作集合定义为
+模型级聚合只在 A7 成员之间学习权重，而不把完整联盟成员与 A7 成员同时放入一个高维动作集合。这样可以避免同一成员的基础预测和校正预测在小 selection 集上形成重复自由度。令
 
 $$
-\mathcal B
+\mathcal B_{\mathrm{A7}}
 =
 \left\{
-p_{\mathcal M}^{(1)},
-q_\theta^{(1)},
-\ldots,
-p_{\mathcal M}^{(E)},
-q_\theta^{(E)}
+p_{\mathrm{A7}}^{(1)},\ldots,p_{\mathrm{A7}}^{(E)}
 \right\}.
 $$
 
-记第 $j$ 个动作对样本 $i$ 的预测为 $b_{j,i}$。在独立 selection 集上求解非负凸权重：
+在独立 selection 集上，对每个候选正则强度 $\lambda_w$ 求解：
 
 $$
-\hat w
+\hat w(\lambda_w)
 =
-\arg\min_{w\in\Delta^{2E-1}}
-\left{
+\arg\min_{w\in\Delta^{E-1}}
+\left\{
 -\frac1{N_{\mathrm{sel}}}
 \sum_{i=1}^{N_{\mathrm{sel}}}
 \log
 \left[
-\sum_{j=1}^{2E}
-w_jb_{j,i}(y_i)
+\sum_{e=1}^{E}
+w_ep_{\mathrm{A7},i}^{(e)}(y_i)
 \right]
 +
 \lambda_w\|w\|_2^2
 \right\},
 $$
 
-其中概率单纯形为
+其中
 
 $$
-\Delta^{2E-1}
+\Delta^{E-1}
 =
 \left\{
-w\in\mathbb R^{2E}:
-w_j\ge0,
-\sum_{j=1}^{2E}w_j=1
+w\in\mathbb R^E:
+w_e\ge0,
+\sum_{e=1}^{E}w_e=1
 \right\}.
 $$
 
-得到稳定后验聚合
+正则候选固定为
 
 $$
-p_{\mathrm{agg}}
+\Lambda=\{10^{-3},10^{-2},10^{-1},1,10\}.
+$$
+
+设候选中的最小 selection NLL 为 $L_{\min}$。为了在近似相同的拟合质量下优先选择更平滑的成员权重，采用容差规则：
+
+$$
+\hat\lambda_w
 =
-\sum_{j=1}^{2E}\hat w_jb_j.
+\max\left\{
+\lambda\in\Lambda:
+L_{\mathrm{sel}}(\hat w(\lambda))
+\le L_{\min}+\varepsilon_\lambda
+\right\},
 $$
 
-该层不使用无约束线性堆叠，而将输出限制在成员概率的凸包中。$\ell_2$ 正则用于抑制 selection 样本有限时权重过度集中于单一成员。
+其中 $\varepsilon_\lambda=10^{-3}$。得到
+
+$$
+p_{\mathrm{A7\text{-}agg}}
+=
+\sum_{e=1}^{E}
+\hat w_e(\hat\lambda_w)p_{\mathrm{A7}}^{(e)}.
+$$
+
+该层把输出限制在 A7 成员预测的概率凸包中。非负约束阻止 selection 上的线性外推，容差内最大正则规则抑制权重在小 selection 集上过度集中。该规则属于预先固定的经验稳定化策略，不构成测试分布上的最优性保证。
 
 ### 5.9 完整联盟集成回退
 
@@ -1395,14 +1403,14 @@ p_{\mathrm{full\text{-}ens}}
 p_{\mathcal M}^{(e)}.
 $$
 
-模型级最终输出在完整联盟集成和稳定后验聚合之间执行全局收缩：
+模型级最终输出在完整联盟集成和正则化A7成员聚合之间执行全局收缩：
 
 $$
 p_{\mathrm{final}}
 =
 (1-\rho)p_{\mathrm{full\text{-}ens}}
 +
-\rho p_{\mathrm{agg}},
+\rho p_{\mathrm{A7\text{-}agg}},
 $$
 
 其中
@@ -1450,10 +1458,12 @@ $$
 
 ### 5.10 凸聚合的理论性质
 
-**命题9（凸聚合的概率有效性）.** 若每个 $b_j$ 是概率分布，且 $w\in\Delta^{2E-1}$，则
+**命题9（凸聚合的概率有效性）.** 若每个 $p_{\mathrm{A7}}^{(e)}$ 是概率分布，且 $w\in\Delta^{E-1}$，则
 
 $$
-p_{\mathrm{agg}}=\sum_jw_jb_j
+p_{\mathrm{A7\text{-}agg}}
+=
+\sum_ew_ep_{\mathrm{A7}}^{(e)}
 $$
 
 也是概率分布。
@@ -1465,18 +1475,18 @@ $$
 $$
 -\log
 \left[
-\sum_jw_jb_j(y)
+\sum_ew_ep_{\mathrm{A7}}^{(e)}(y)
 \right]
 \le
-\sum_jw_j[-\log b_j(y)].
+\sum_ew_e[-\log p_{\mathrm{A7}}^{(e)}(y)].
 $$
 
 **证明.** 函数 $f(a)=-\log a$ 在 $a>0$ 上为凸函数。根据 Jensen 不等式，
 
 $$
-f\left(\sum_jw_jb_j(y)\right)
+f\left(\sum_ew_ep_{\mathrm{A7}}^{(e)}(y)\right)
 \le
-\sum_jw_jf(b_j(y)).
+\sum_ew_ef(p_{\mathrm{A7}}^{(e)}(y)).
 $$
 
 代入 $f(a)=-\log a$ 即得结论。证毕。
@@ -1548,8 +1558,8 @@ RCG-Fusion 按以下顺序训练。阶段之间显式冻结中间产物，避免
     5. 冻结样本级融合策略。
 
 阶段 E：拟合模型级稳定聚合
-    1. 汇集多个模型成员的完整联盟预测与标签后验。
-    2. 在 D_sel 上拟合概率单纯形权重 w_hat。
+    1. 汇集多个模型成员的完整联盟预测与A7样本级预测。
+    2. 在 D_sel 上选择容差内最强正则并拟合A7成员单纯形权重 w_hat。
     3. 构造完整联盟等权集成。
     4. 在 D_sel 上选择满足 Accuracy 非退化约束的 ρ。
     5. 冻结 w_hat 与 ρ。
@@ -1634,7 +1644,7 @@ $$
 5. **锚点局限。** 解析锚定保证学习残差不会覆盖解析 Top-1，但不保证解析 Top-1 一定是最佳联盟。
 6. **经验回退。** selection 上的 Accuracy 非退化约束是经验规则，不提供分布漂移下的无条件测试保证。
 7. **联盟规模。** 精确枚举的成本随模态数指数增长，当前方法面向二模态和三模态等少模态场景。
-8. **多成员成本。** 稳定后验聚合需要多个任务模型和后验成员，会增加训练、存储和推理成本。
+8. **多成员成本。** 稳定成员聚合需要多个任务模型、后验网络和A7输出，会增加训练、存储和推理成本。
 9. **完全替换边界。** 当自适应强度或模型级回退系数允许取 $1$ 时，完整联盟的有限最坏损失增量上界不再成立。
 
 这些边界限定了本文理论主张：RCG-Fusion 提供的是模型条件贡献监督、无标签解析贡献估计和带完整联盟回退路径的概率融合机制，而不是对任意模态数、任意分布漂移或任意任务模型都成立的全局安全保证。

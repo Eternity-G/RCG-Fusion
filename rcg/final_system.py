@@ -1,8 +1,9 @@
 """Canonical definition and provenance helpers for the final RCG-Fusion system.
 
-The final system aggregates, for every task member, its full-coalition action
-and its A7 contribution-controlled action.  Convex weights and the fallback
-coefficient are fitted on the selection split only.  This module is the single
+The final system aggregates the contribution-controlled A7 member actions with
+selection-chosen simplex regularization, then falls back toward the equal
+full-coalition ensemble.  Weights and the fallback coefficient are fitted on
+the selection split only.  This module is the single
 source of truth for the canonical final-system definition; subsequent formal
 clean, stress, transfer, and case analyses must call it or consume its saved
 predictions.
@@ -19,14 +20,14 @@ import numpy as np
 from .stable_ensemble import fit_simplex_weights, mix_actions, select_safe_shrinkage
 
 
-METHOD_VERSION = "rcg-fusion-a8-v1"
+METHOD_VERSION = "rcg-fusion-a8-v2"
 METHOD_STAGES = (
     "grouped_oof_coalition_supervision",
     "posterior_analytic_contribution",
     "analytic_anchored_listwise_candidates",
     "anchored_candidate_mixer",
     "contribution_probability_shrinkage",
-    "joint_full_a7_convex_aggregation_with_fallback",
+    "regularized_a7_member_convex_aggregation_with_full_fallback",
 )
 
 
@@ -38,6 +39,7 @@ class FinalSystemOutput:
     final_probability: np.ndarray
     action_weights: np.ndarray
     fallback_rho: float
+    aggregation_l2: float
     action_names: tuple[str, ...]
     fallback_grid: tuple[dict[str, float], ...]
 
@@ -67,21 +69,41 @@ def fit_final_system(selection_full_members: np.ndarray,
                      test_full_members: np.ndarray,
                      test_a7_members: np.ndarray,
                      *, member_ids: Sequence[object] | None = None,
-                     simplex_l2: float = 1e-3,
+                     simplex_l2_grid: Iterable[float] = (1e-3, 1e-2, 1e-1, 1., 10.),
+                     regularization_tolerance: float = 1e-3,
                      fallback_grid: Iterable[float] | None = None) -> FinalSystemOutput:
     """Fit the canonical A8 aggregation on selection and apply it to test.
 
     Test labels are deliberately absent from this interface.
     """
-    selection_actions, action_names = _member_actions(
-        selection_full_members, selection_a7_members, member_ids)
-    test_actions, test_names = _member_actions(test_full_members, test_a7_members, member_ids)
-    if action_names != test_names:
-        raise AssertionError("selection and test action order differs")
+    selection_full_members = np.asarray(selection_full_members, dtype=np.float64)
+    selection_actions = np.asarray(selection_a7_members, dtype=np.float64)
+    test_actions = np.asarray(test_a7_members, dtype=np.float64)
+    if selection_full_members.ndim != 3 or selection_actions.shape != selection_full_members.shape:
+        raise ValueError("full and A7 members must have identical [E,N,K] shapes")
+    if test_actions.shape != np.asarray(test_full_members).shape:
+        raise ValueError("test full and A7 members must have identical [E,N,K] shapes")
+    if member_ids is None:
+        member_ids = tuple(range(selection_actions.shape[0]))
+    if len(member_ids) != selection_actions.shape[0]:
+        raise ValueError("one member id is required per ensemble member")
+    action_names = tuple(f"member_{member_id}_a7" for member_id in member_ids)
     labels = np.asarray(selection_labels, dtype=np.int64)
     if selection_actions.shape[1] != len(labels):
         raise ValueError("selection labels are not aligned with member actions")
-    weights = fit_simplex_weights(selection_actions, labels, l2=simplex_l2)
+    candidates = []
+    for l2 in tuple(float(value) for value in simplex_l2_grid):
+        if l2 <= 0:
+            raise ValueError("simplex regularization values must be positive")
+        candidate_weights = fit_simplex_weights(selection_actions, labels, l2=l2)
+        candidate_probability = mix_actions(selection_actions, candidate_weights)
+        candidate_nll = float(-np.log(np.clip(candidate_probability[
+            np.arange(len(labels)), labels], 1e-12, 1)).mean())
+        candidates.append((l2, candidate_nll, candidate_weights))
+    best_nll = min(value[1] for value in candidates)
+    eligible = [value for value in candidates
+                if value[1] <= best_nll+float(regularization_tolerance)]
+    chosen_l2, _, weights = max(eligible, key=lambda value: value[0])
     selection_convex = mix_actions(selection_actions, weights)
     test_convex = mix_actions(test_actions, weights)
     selection_full = np.asarray(selection_full_members, dtype=np.float64).mean(0)
@@ -97,6 +119,7 @@ def fit_final_system(selection_full_members: np.ndarray,
         final_probability=final,
         action_weights=weights,
         fallback_rho=float(rho),
+        aggregation_l2=float(chosen_l2),
         action_names=action_names,
         fallback_grid=tuple({key: float(value) for key, value in row.items()} for row in records),
     )
@@ -129,6 +152,7 @@ def method_manifest() -> dict[str, object]:
     return {
         "method_version": METHOD_VERSION,
         "stages": list(METHOD_STAGES),
-        "selection_only_parameters": ["A7 strength", "simplex weights", "fallback rho"],
+        "selection_only_parameters": ["A7 strength", "A7 simplex regularization",
+                                      "A7 simplex weights", "fallback rho"],
         "test_labels_role": "evaluation and offline analysis only",
     }

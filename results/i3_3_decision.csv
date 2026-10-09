@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+stable aggregation improves NLL over A7 average,3,3,True
+stable aggregation improves NLL over full ensemble,4,3,True
+accuracy loss is no worse than 0.5pp,4,4,True
+nonnegative stable aggregation lowers logit-stacking harm,3,3,True

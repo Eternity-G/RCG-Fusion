@@ -103,7 +103,7 @@ def run_dataset(dataset, device):
         canonical = fit_final_system(
             members["selection"]["full"], members["selection"]["a7"],
             splits["selection"]["y"], members["test"]["full"], members["test"]["a7"],
-            member_ids=SEEDS, simplex_l2=1e-3)
+            member_ids=SEEDS)
         test_full = canonical.full_ensemble
         test_a7 = canonical.a7_ensemble
         test_convex = canonical.convex_probability
@@ -111,19 +111,18 @@ def run_dataset(dataset, device):
         weight = canonical.action_weights
         rho = canonical.fallback_rho
         # Reconstruct selection probabilities only for selection diagnostics.
-        sel_actions = np.empty((2*len(SEEDS), *sel_full.shape), dtype=np.float64)
-        for i in range(len(SEEDS)):
-            sel_actions[2*i:2*i+2] = [members["selection"]["full"][i], members["selection"]["a7"][i]]
-        sel_convex = np.sum(weight[:, None, None]*sel_actions, axis=0)
+        sel_convex = np.sum(
+            weight[:, None, None]*members["selection"]["a7"], axis=0)
         sel_safe = (1-rho)*sel_full+rho*sel_convex
         methods = {"A0_full_ensemble": (sel_full, test_full),
                    "A7_equal_ensemble": (sel_a7, test_a7),
-                   "A8_joint_convex": (sel_convex, test_convex),
+                   "A8_regularized_a7_convex": (sel_convex, test_convex),
                    "A8_safe_fallback": (sel_safe, test_safe)}
         for method, (selection_probability, test_probability) in methods.items():
             labels = splits["test"]["y"]; selection_labels = splits["selection"]["y"]
             metrics.append({"dataset": dataset, "fold": fold_index, "method": method,
                             "n_test": len(labels), "rho": rho,
+                            "aggregation_l2": canonical.aggregation_l2,
                             "selection_accuracy": float((selection_probability.argmax(1) == selection_labels).mean()),
                             "selection_nll": float(-np.log(np.clip(selection_probability[
                                 np.arange(len(selection_labels)), selection_labels], 1e-12, 1)).mean()),
@@ -147,7 +146,8 @@ def run_dataset(dataset, device):
         final_predictions.append(final_frame)
         for action, value in zip(canonical.action_names, weight):
             weights.append({"dataset": dataset, "fold": fold_index, "action": action,
-                            "weight": float(value), "rho": rho})
+                            "weight": float(value), "rho": rho,
+                            "aggregation_l2": canonical.aggregation_l2})
         print(f"{dataset} fold={fold_index}: rho={rho:.1f} "
               f"A0={evaluate(test_full, splits['test']['y'], test_full)['nll']:.4f} "
               f"A7={evaluate(test_a7, splits['test']['y'], test_full)['nll']:.4f} "
@@ -170,8 +170,9 @@ def run_dataset(dataset, device):
     digest = prediction_hash(final_frame.sample_id, final_frame.fold,
                              final_frame[pcols].to_numpy(), method_version=METHOD_VERSION)
     (root/"manifest.json").write_text(json.dumps({"experiment": "E8 actual A7-to-A8 bridge",
-        "dataset": dataset, "seeds": list(SEEDS), "joint_actions": "five full + five A7",
-        "simplex_l2": 1e-3, "selection_role": "A7 strength inherited from E6; fit weights and rho",
+        "dataset": dataset, "seeds": list(SEEDS), "joint_actions": "five regularized A7 members",
+        "simplex_l2": canonical.aggregation_l2,
+        "selection_role": "A7 strength inherited from E6; select regularization, weights and rho",
         "prediction_hash": digest, **method_manifest()}, indent=2), encoding="utf-8")
 
 
