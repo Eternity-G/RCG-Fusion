@@ -240,9 +240,33 @@ def mmsasplits(root, dataset):
     return [raw], names
 
 
+def avmnistsplits(root):
+    root = Path(root)
+    if (root/"avmnist_hf"/"prepared").exists():
+        root = root/"avmnist_hf"/"prepared"
+    elif (root/"avmnist"/"prepared").exists():
+        root = root/"avmnist"/"prepared"
+    elif (root/"prepared").exists():
+        root = root/"prepared"
+    raw = {}
+    names = ("image", "audio")
+    for key in ("train", "selection", "calibration", "test"):
+        with np.load(root/f"{key}.npz") as data:
+            ids = data["id"].copy()
+            raw[key] = {"x": [data[name].copy() for name in names],
+                        "y": data["y"].copy(), "id": ids,
+                        "group": ids.copy()}
+    return [normalize_splits(raw)], names
+
+
 def run(dataset, data, output, methods, seeds, device="cuda", epochs=100):
     device = device if device == "cpu" or torch.cuda.is_available() else "cpu"
-    folds, names = cremadsplits(data) if dataset == "cremad" else mmsasplits(data, dataset)
+    if dataset == "cremad":
+        folds, names = cremadsplits(data)
+    elif dataset == "avmnist":
+        folds, names = avmnistsplits(data)
+    else:
+        folds, names = mmsasplits(data, dataset)
     output=Path(output); output.mkdir(parents=True, exist_ok=True)
     for fold, splits in enumerate(folds):
         dims=[x.shape[1] for x in splits["train"]["x"]]; classes=int(max(s["y"].max() for s in splits.values())+1)
@@ -268,7 +292,7 @@ def run(dataset, data, output, methods, seeds, device="cuda", epochs=100):
 
 
 def main():
-    p=argparse.ArgumentParser(); p.add_argument("--dataset", choices=("mosi","mosei","cremad"), required=True)
+    p=argparse.ArgumentParser(); p.add_argument("--dataset", choices=("mosi","mosei","cremad","avmnist"), required=True)
     p.add_argument("--data", type=Path, default=Path("data")); p.add_argument("--output", type=Path, required=True)
     p.add_argument("--methods", nargs="+", default=["concat","tmc","qmf","pdf","i2moe"])
     p.add_argument("--seeds", nargs="+", type=int, default=[11,22,33,44,55]); p.add_argument("--device", default="cuda")

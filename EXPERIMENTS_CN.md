@@ -465,6 +465,29 @@ AV-MNIST使用一个由五个独立成员组成的最终集成，在固定测试
 
 **产物路径：** 四个数据集的本地正式汇总分别位于`runs/formal-e1-mosi/`、`runs/formal-e1-mosei/`、`runs/formal-e1-cremad/`和`runs/formal-e1-avmnist/`；可追踪汇总位于`results/e1_*`；论文图片位于`figures/e1_*.png`。
 
+### S1规范主表：P0 v2与计算匹配外部基线
+
+**状态：** 🟡 单个五成员集成点及配对bootstrap完成；独立五组集成重复待补。
+
+S1只使用P0冻结的`rcg-fusion-a8-v2`预测。所有外部方法均使用相同冻结表示和测试划分，并对五个训练成员的概率进行平均。基础方法包括最佳单模态、等权概率、最大概率加权、熵加权、selection拟合静态late fusion、full-only Concat、modality dropout和coalition dropout；动态方法包括统一特征适配的TMC、QMF、PDF和I²MoE。AV-MNIST此前缺少强方法检查点，本轮已按相同协议补齐五种子训练。
+
+| 数据集 | RCG Accuracy | 最强Accuracy基线 | $\Delta$Accuracy | RCG NLL | 最强NLL基线 | NLL改善 |
+|---|---:|---|---:|---:|---|---:|
+| MOSI | **80.34%** | Coalition dropout 79.73% | +0.61 pp | **.44179** | Coalition dropout .45045 | +.00866 |
+| MOSEI | 84.31% | Concat **84.65%** | -0.33 pp | .35549 | Concat **.35514** | -.00034 |
+| CREMA-D | 63.73% | TMC **65.09%** | -1.36 pp | **.96298** | Coalition dropout .97384 | +.01086 |
+| AV-MNIST | 99.36% | I²MoE **99.39%** | -0.03 pp | **.02134** | I²MoE .02564 | +.00431 |
+
+RCG-Fusion在MOSI、CREMA-D和AV-MNIST获得当前最低NLL，满足“3/4数据集数值最低”的方向判据；MOSEI与Concat相差0.00034 NLL，方向略差。相对每个数据集最强NLL基线的10,000次配对bootstrap区间均包含零，因此“至少三个数据集显著降低NLL”未通过。
+
+Accuracy证据更弱：RCG只在MOSI超过最强Accuracy基线；MOSEI和AV-MNIST近似持平，CREMA-D低于TMC 1.36个百分点，演员簇95%区间为$[-2.58,-0.15]$个百分点。因而当前系统不能声称相对最强动态融合普遍改善分类决策。CREMA-D的结果同时说明，单一Concat式规范骨干的贡献校正不能替代强任务骨干；S4必须检验`TMC + RCG`等成对迁移能否保留强骨干Accuracy并降低NLL。
+
+![S1 统一干净主结果](figures/s1_clean_main.png)
+
+**统计边界。** 当前bootstrap只刻画固定五成员系统的样本或视频/演员簇不确定性。它不等于独立重新训练方差。MOSI/MOSEI已有的历史五组结果使用旧聚合链，不能替代P0 v2的独立重复；CREMA-D和AV-MNIST也仍缺少新的独立五组系统。S1在这些重复完成前保持“部分完成”。
+
+**产物路径：** `results/s1_clean_predictions.parquet`、`results/s1_clean_metrics.csv`、`results/s1_clean_paired_bootstrap.csv`、`results/s1_primary_summary.csv`、`results/s1_decision.csv`、`results/s1_report.md`、`results/s1_manifest.json`及`figures/s1_clean_main.png`。
+
 ---
 
 # 4. 创新一：多教师交叉拟合软联盟监督
@@ -1744,11 +1767,11 @@ $$
 | I3-1 | 候选融合价值 | ✅ 完成 | 软融合数值上4/4优于最佳硬路由；候选边际价值在MOSI与CREMA-D为正 |
 | I3-2 | 匹配损害预算的收益—风险 | ✅ 完成 | 四预算、同动作控制与TMC/QMF/PDF原生分数；3/4数据集匹配2%损害优势 |
 | I3-3 | 模型级稳定聚合与回退 | ✅ 完成 | 正则化A7成员凸聚合在3/4数据集优于A7等权；四数据集相对完整联盟NLL数值改善 |
-| S1 | 四数据集计算匹配干净主结果 | 🔴 待运行 | 统一外部基线、重复CI、Holm校正 |
+| S1 | 四数据集计算匹配干净主结果 | 🟡 单集成点完成 | 全部统一基线与簇bootstrap完成；P0 v2独立五组集成重复待补 |
 | S2 | 连续退化鲁棒性 | 🔴 待规范复验 | clean-only与共享增强，比较强外部基线 |
 | S3 | 模态缺失与任意联盟 | 🔴 待规范复验 | availability-safe RCG与外部缺失适配 |
 | S4 | 骨干可迁移性 | 🔴 待规范复验 | 五骨干，MOSI与CREMA-D，Base/Base+RCG |
 | S5 | A0—A8三链消融 | 🔴 待规范汇总 | 监督、路由、决策三条证据链 |
 | S6 | 效率与收益归一化 | 🔴 待规范复验 | 单成员、蒸馏和五成员版本及外部基线 |
 
-下一项固定为S1。S1只读取P0 v2的规范预测与计算匹配外部基线，不把历史E1/E7/E11结果直接复制到新的正式主表。
+下一项固定为补齐S1的P0 v2独立训练重复；其后进入S2。历史E1/E7/E11结果不复制到新的正式主表。

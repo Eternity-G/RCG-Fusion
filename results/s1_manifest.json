@@ -1,0 +1,19 @@
+{
+  "experiment": "S1 compute-matched clean main results",
+  "method_version": "rcg-fusion-a8-v2",
+  "datasets": [
+    "mosi",
+    "mosei",
+    "cremad",
+    "avmnist"
+  ],
+  "ensemble_members": [
+    11,
+    22,
+    33,
+    44,
+    55
+  ],
+  "bootstrap_repetitions": 10000,
+  "status": "single five-member ensemble per method; independent ensemble repeats pending"
+}

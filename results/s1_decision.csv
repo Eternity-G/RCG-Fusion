@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+lowest NLL among compute-matched primary methods,3,3,True
+paired NLL CI excludes zero against strongest NLL baseline,0,3,False
+accuracy improves over strongest accuracy baseline,1,2,False
+accuracy loss no worse than 0.5pp,3,4,False
