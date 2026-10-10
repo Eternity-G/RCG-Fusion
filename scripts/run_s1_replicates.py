@@ -40,9 +40,18 @@ GROUPS = {
 
 def configuration(dataset: str, group: str):
     root = ROOT/f"runs/formal-e1-{dataset}/{group}"
-    return {"base": root/"base", "posterior": root/"posterior",
-            "oof": root/"base/fold_0/oof_targets.npz",
-            "batch_size": 64 if dataset == "mosi" else 128}
+    config = {"base": root/"base", "posterior": root/"posterior",
+              "batch_size": 64 if dataset in ("mosi", "cremad") else 128}
+    # CREMA-D/AV-MNIST use the protocol-frozen multi-teacher OOF library for
+    # every independent task-training repeat. This isolates optimization
+    # randomness without silently changing the contribution target itself.
+    if dataset == "cremad":
+        config["oof_template"] = str(ROOT/"runs/formal-e2-cremad-oof/fold_{fold}/oof_targets.npz")
+    elif dataset == "avmnist":
+        config["oof"] = ROOT/"runs/formal-e2-avmnist-oof/oof_targets.npz"
+    else:
+        config["oof"] = root/"base/fold_0/oof_targets.npz"
+    return config
 
 
 def selected_strength(e6_root: Path, fold: int, seed: int) -> float:
@@ -122,6 +131,12 @@ def run(dataset: str, group: str, device: str):
     seeds = GROUPS[group]; cfg = configuration(dataset, group)
     e4.CONFIGS[dataset] = cfg; e5.CONFIGS[dataset] = cfg; e6.CONFIGS[dataset] = cfg
     e4.SEEDS = seeds; e5.SEEDS = seeds; e6.SEEDS = seeds
+    # Independent system repeats need only the deployed mixer. E5's other
+    # variants are ablations already covered by I3-1 and would multiply this
+    # confirmation run without changing the final prediction.
+    e5.BASELINES = ()
+    e5.LEARNED = {"anchored_harm_oracle": {
+        "anchor_full": True, "harm_weight": 2., "oracle_weight": .05}}
     root = ROOT/f"runs/formal-s1-replicates/{dataset}/{group}"
     e5_root, e6_root = root/"e5", root/"e6"
     e5.run_dataset(dataset, device, output_root=e5_root)
@@ -130,11 +145,12 @@ def run(dataset: str, group: str, device: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument("--dataset", choices=("mosi", "mosei", "all"), default="all")
+    parser = argparse.ArgumentParser(); parser.add_argument(
+        "--dataset", choices=("mosi", "mosei", "cremad", "avmnist", "all"), default="all")
     parser.add_argument("--group", choices=(*GROUPS, "all"), default="all")
     parser.add_argument("--device", default="cuda"); args = parser.parse_args()
     device = args.device if args.device == "cpu" or torch.cuda.is_available() else "cpu"
-    datasets = ("mosi", "mosei") if args.dataset == "all" else (args.dataset,)
+    datasets = ("mosi", "mosei", "cremad", "avmnist") if args.dataset == "all" else (args.dataset,)
     groups = tuple(GROUPS) if args.group == "all" else (args.group,)
     for dataset in datasets:
         for group in groups: run(dataset, group, device)

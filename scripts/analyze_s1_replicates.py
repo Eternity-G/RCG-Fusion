@@ -1,4 +1,4 @@
-"""Analyze five independent P0-v2 ensemble groups for MOSI and MOSEI."""
+"""Analyze five independent P0-v2 ensemble groups on all four datasets."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -47,7 +47,7 @@ def training_ci(values):
     return mean, mean-margin, mean+margin, float(ttest_1samp(values, 0).pvalue)
 
 
-def cluster_bootstrap(frames, repetitions=10_000, seed=20261009):
+def paired_bootstrap(frames, dataset, repetitions=10_000, seed=20261009):
     base = frames[0][["fold", "sample_id", "group_or_video_id", "label"]].copy()
     values = []
     for frame in frames:
@@ -58,12 +58,20 @@ def cluster_bootstrap(frames, repetitions=10_000, seed=20261009):
         values.append(np.stack([
             np.log(np.clip(final[rows, labels], 1e-12, 1))-np.log(np.clip(full[rows, labels], 1e-12, 1)),
             (final.argmax(1) == labels).astype(float)-(full.argmax(1) == labels).astype(float)], 1))
-    values = np.mean(values, axis=0); groups = base.group_or_video_id.astype(str).to_numpy()
-    unique = np.unique(groups); index = {group: np.flatnonzero(groups == group) for group in unique}
+    values = np.mean(values, axis=0)
     rng = np.random.default_rng(seed); draws = np.empty((repetitions, 2))
-    for draw in range(repetitions):
-        sample = rng.choice(unique, len(unique), replace=True)
-        take = np.concatenate([index[group] for group in sample]); draws[draw] = values[take].mean(0)
+    if dataset == "avmnist":
+        strata = base.label.to_numpy(int)
+        index = {label: np.flatnonzero(strata == label) for label in np.unique(strata)}
+        for draw in range(repetitions):
+            take = np.concatenate([rng.choice(rows, len(rows), replace=True) for rows in index.values()])
+            draws[draw] = values[take].mean(0)
+    else:
+        groups = base.group_or_video_id.astype(str).to_numpy()
+        unique = np.unique(groups); index = {group: np.flatnonzero(groups == group) for group in unique}
+        for draw in range(repetitions):
+            sample = rng.choice(unique, len(unique), replace=True)
+            take = np.concatenate([index[group] for group in sample]); draws[draw] = values[take].mean(0)
     return {"nll_ci_low": float(np.quantile(draws[:, 0], .025)),
             "nll_ci_high": float(np.quantile(draws[:, 0], .975)),
             "accuracy_ci_low": float(np.quantile(draws[:, 1], .025)),
@@ -72,10 +80,11 @@ def cluster_bootstrap(frames, repetitions=10_000, seed=20261009):
 
 def main():
     rows, summaries = [], []
-    for dataset in ("mosi", "mosei"):
+    datasets = ("mosi", "mosei", "cremad", "avmnist")
+    for dataset in datasets:
         frames = [load(dataset, group) for group in GROUPS]
         table = pd.DataFrame([metrics(frame, group) for frame, group in zip(frames, GROUPS)])
-        rows.append(table); bootstrap = cluster_bootstrap(frames)
+        rows.append(table); bootstrap = paired_bootstrap(frames, dataset)
         acc = training_ci(table.accuracy_gain); nll = training_ci(table.nll_gain)
         summaries.append({"dataset": dataset, "accuracy_gain_mean": acc[0],
                           "accuracy_training_ci_low": acc[1], "accuracy_training_ci_high": acc[2],
@@ -87,13 +96,26 @@ def main():
     rows = pd.concat(rows, ignore_index=True); summary = pd.DataFrame(summaries)
     rows.to_csv(ROOT/"results/s1_replicates_by_group.csv", index=False)
     summary.to_csv(ROOT/"results/s1_replicates_summary.csv", index=False)
+    decisions = pd.DataFrame([
+        {"criterion": "NLL improves in all five independent groups",
+         "datasets_passed": int((summary.nll_wins == 5).sum()), "required": 3},
+        {"criterion": "training-repeat NLL 95% CI is above zero",
+         "datasets_passed": int((summary.nll_training_ci_low > 0).sum()), "required": 2},
+        {"criterion": "paired cluster/stratified NLL 95% CI is above zero",
+         "datasets_passed": int((summary.nll_ci_low > 0).sum()), "required": 3},
+        {"criterion": "training-repeat accuracy 95% CI is above zero",
+         "datasets_passed": int((summary.accuracy_training_ci_low > 0).sum()), "required": 1},
+    ])
+    decisions["pass"] = decisions.datasets_passed >= decisions.required
+    decisions.to_csv(ROOT/"results/s1_replicate_decision.csv", index=False)
 
-    fig, axes = plt.subplots(1, 2, figsize=(7.8, 3.1), constrained_layout=True)
-    colors = {"mosi": "#0072B2", "mosei": "#D55E00"}
-    for dataset in ("mosi", "mosei"):
+    fig, axes = plt.subplots(1, 2, figsize=(8.8, 3.35), constrained_layout=True)
+    colors = {"mosi": "#0072B2", "mosei": "#D55E00", "cremad": "#009E73", "avmnist": "#CC79A7"}
+    labels = {"mosi": "MOSI", "mosei": "MOSEI", "cremad": "CREMA-D", "avmnist": "AV-MNIST"}
+    for dataset in datasets:
         data = rows[rows.dataset == dataset]; x = np.arange(1, 6)
-        axes[0].plot(x, 100*data.accuracy_gain, "o-", color=colors[dataset], label=dataset.upper())
-        axes[1].plot(x, data.nll_gain, "o-", color=colors[dataset], label=dataset.upper())
+        axes[0].plot(x, 100*data.accuracy_gain, "o-", color=colors[dataset], label=labels[dataset])
+        axes[1].plot(x, data.nll_gain, "o-", color=colors[dataset], label=labels[dataset])
     for axis in axes:
         axis.axhline(0, color="black", linewidth=.8); axis.set_xticks(np.arange(1, 6))
         axis.set_xlabel("Independent ensemble group"); axis.spines[["top", "right"]].set_visible(False)

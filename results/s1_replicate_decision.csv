@@ -1,0 +1,5 @@
+criterion,datasets_passed,required,pass
+NLL improves in all five independent groups,3,3,True
+training-repeat NLL 95% CI is above zero,2,2,True
+paired cluster/stratified NLL 95% CI is above zero,3,3,True
+training-repeat accuracy 95% CI is above zero,1,1,True
